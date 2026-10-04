@@ -57,6 +57,20 @@
       "when": 1791146958757,
       "tag": "0007_sequences_booking_security",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791150799100,
+      "tag": "0008_ads",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791150799964,
+      "tag": "0009_ads_security",
+      "breakpoints": true
     }
   ]
 }

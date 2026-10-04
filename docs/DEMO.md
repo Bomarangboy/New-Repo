@@ -1,6 +1,6 @@
 # Sales Demo Environment
 
-**Status:** foundation (Stage 1) + sample dataset v1 (Stage 2) + simulated conversations (Stage 3) + follow‑ups and simulated appointments (Stage 4). The full demo — sample dataset, prospect access, presentation
+**Status:** foundation (Stage 1) + sample dataset v1 (Stage 2) + simulated conversations (Stage 3) + follow‑ups and simulated appointments (Stage 4) + simulated ad accounts and reports (Stage 5). The full demo — sample dataset, prospect access, presentation
 controls, guided tour — is built alongside Stages 2–5. Nothing in the demo is evidence that a live
 integration works.
 
@@ -39,6 +39,13 @@ prospect workspaces exist.
 - **Simulate a booking** on any lead (and **Simulate cancellation** on Appointments) shows the whole booking flow —
   lead moves to Booked, follow‑up stops, confirmation text, team alert — using the same code as a real Cal.com
   webhook. Cal.com itself shows "Not connected"; the demo never claims a live connection.
+
+## Advertising (Stage 5)
+- Every sample company has a simulated Facebook Page receiving lead‑form leads; **Send a simulated lead** shows a lead
+  arriving (labeled "(simulated)") and being acknowledged.
+- The Package 3 sample company (Bayside Dental) has simulated Meta and Google Ads accounts with 90 days of sample
+  numbers and sample leads linked to sample campaigns, so Reports is fully populated — with a "Sample numbers" banner.
+- The server forces simulated ad platforms in the demo; `ADS_LIVE_ENABLED` is refused there.
 
 ## Planned design
 - Hosted separately at `demo.yourdomain.com` with its **own Supabase project and Vercel project** — no

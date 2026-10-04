@@ -109,7 +109,7 @@ test.describe.serial("Stage 4: follow-up and booking", () => {
     expect((await request.post(hookUrl, { data: ping, headers: { "content-type": "application/json", "x-cal-signature-256": "0".repeat(64) } })).status()).toBe(401);
     expect((await request.post(hookUrl, { data: ping, headers: { "content-type": "application/json", "x-cal-signature-256": sign(ping) } })).status()).toBe(200);
     await page.reload();
-    await expect(page.getByText("Connected", { exact: true })).toBeVisible();
+    await expect(page.locator(".badge", { hasText: /^Connected$/ })).toBeVisible(); // the Cal.com card's status
     await expect(page.locator("body")).not.toContainText(secret);
 
     // A booking made through the lead's personal link (reference = the lead).

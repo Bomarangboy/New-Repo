@@ -34,6 +34,20 @@ const schema = z.object({
   LIVE_SENDING_ENABLED: bool,
   /** Secret that scheduled job triggers must present. */
   JOB_TRIGGER_SECRET: z.string().min(24).optional(),
+
+  /* ---- Advertising platforms (Stage 5). Live connections need the owner's approval: off by default. ---- */
+  ADS_LIVE_ENABLED: bool,
+  META_APP_ID: z.string().optional(),
+  META_APP_SECRET: z.string().optional(),
+  /** Any long random string; Meta presents it once when the webhook is registered. */
+  META_WEBHOOK_VERIFY_TOKEN: z.string().optional(),
+  META_GRAPH_VERSION: z.string().regex(/^v\d+\.\d+$/).default("v26.0"),
+  GOOGLE_OAUTH_CLIENT_ID: z.string().optional(),
+  GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_ADS_DEVELOPER_TOKEN: z.string().optional(),
+  /** Manager (MCC) account id, digits only, if Bluewater accesses clients through a manager account. */
+  GOOGLE_ADS_LOGIN_CUSTOMER_ID: z.string().regex(/^\d{10}$/).optional(),
+  GOOGLE_ADS_API_VERSION: z.string().regex(/^v\d+$/).default("v25"),
 });
 
 export type Env = z.infer<typeof schema>;
@@ -71,6 +85,9 @@ export function assertSafeCombination(e: Env, raw: Record<string, string | undef
   }
   if (e.APP_ENV === "demo" && e.LIVE_SENDING_ENABLED) {
     throw new Error("The sales demo can never enable live sending.");
+  }
+  if (e.ADS_LIVE_ENABLED && e.APP_ENV !== "production" && e.APP_ENV !== "staging") {
+    throw new Error("Live advertising connections can only be enabled in staging or production (development, test and the demo always simulate).");
   }
   if (e.LIVE_SENDING_ENABLED && e.APP_ENV !== "production") {
     throw new Error("Live sending can only be enabled in production (development, test, staging and the demo always simulate).");

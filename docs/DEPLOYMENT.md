@@ -98,6 +98,16 @@ webhook availability on [cal.com/pricing](https://cal.com/pricing)). The owner (
 edit access) connects it from Connected Accounts; full steps in `docs/BOOKING.md`. The webhook secret is shown
 once in Bluewater and pasted into Cal.com — it never goes through email or chat.
 
+## 3e. Advertising platforms (Stage 5) — approvals first, then your go‑ahead
+
+Nothing is needed for staging/demo (they simulate). For real clients:
+1. Google lead forms work as soon as production is deployed: each client sets up the webhook from Connected Accounts.
+2. Meta and Google Ads API access need Bluewater's apps approved — the step‑by‑step list is in `docs/ADS.md`
+   ("Approvals Bluewater needs"). Expect weeks; start early. Keep app secrets in Vercel only.
+3. 🔐 Set the platform variables from `.env.example` in Vercel (production; optionally staging for a test client).
+4. With the owner's approval set `ADS_LIVE_ENABLED=true` and redeploy. Connect one internal test Page/account first,
+   confirm a test lead and a day of numbers, then offer it to clients.
+
 ## 4. Domain and HTTPS
 
 1. Buy/keep the domain in an account you own (registrar login in your password manager).
@@ -131,5 +141,5 @@ once in Bluewater and pasted into Cal.com — it never goes through email or cha
 | Daily (automatic) | Backups; uptime checks; error alerts |
 | Weekly | Review errors and failed jobs; check message failure rates (Stage 3+) |
 | Monthly | Dependency/security updates on staging first; review costs vs. budget; review admin access list |
-| Quarterly | Restore test into an isolated project; review Meta/Google API version deprecations; rotate keys |
+| Quarterly | Restore test into an isolated project; review Meta/Google API versions (`META_GRAPH_VERSION`, `GOOGLE_ADS_API_VERSION`) against their deprecation schedules; rotate keys |
 | Yearly | Domain renewal; A2P registrations review; legal/terms review |

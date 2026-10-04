@@ -1,9 +1,12 @@
 import { and, asc, eq, gt, inArray, sql } from "drizzle-orm";
 import type { Tx } from "@/lib/db/client";
-import { appointments, companies, contacts, conversations, inquiries, inquiryEvents, intakeSources, messages, notes, sequenceEnrollments, sequenceSteps, sequences, suppressions, tasks } from "@/lib/db/schema";
+import { adAccounts, adCampaigns, adConnections, adDailyMetrics, adLeadSources, adSyncRuns, appointments, companies, contacts, conversations, inquiries, inquiryEvents, intakeSources, messages, notes, sequenceEnrollments, sequenceSteps, sequences, suppressions, tasks } from "@/lib/db/schema";
 import { hasFeature } from "@/lib/authz/entitlements";
 import { enqueue } from "@/server/jobs/queue";
 import { DEFAULT_SEQUENCE_STEPS, renderTemplate } from "@/server/messaging/templates";
+import { encrypt } from "@/lib/crypto";
+import { localDateKey } from "@/lib/periods";
+import { SIM_CAMPAIGNS, simulatedClient } from "@/server/ads/clients/simulated";
 import { newToken } from "@/lib/crypto";
 import { recordInquiry, type InquirySource } from "@/server/crm/record-inquiry";
 
@@ -112,6 +115,7 @@ export async function generateDemoDataset(tx: Tx, o: DatasetOptions) {
   await sampleConversations(tx, o.companyId, now, rand, pick);
   const [co] = await tx.select({ package: companies.package, name: companies.name }).from(companies).where(eq(companies.id, o.companyId));
   if (co && hasFeature(co.package, "sequences")) await sampleFollowUpsAndBookings(tx, o.companyId, co.name, now, rand);
+  if (co) await sampleAds(tx, o.companyId, hasFeature(co.package, "ad_reporting"), now, rand);
   return { created };
 }
 
@@ -243,5 +247,43 @@ async function sampleFollowUpsAndBookings(tx: Tx, companyId: string, companyName
         if (runAt > now) await enqueue(tx, { companyId, kind: "booking_message", key: `bremind:${a!.id}:${off}:${startsAt.getTime()}`, payload: { appointmentId: a!.id, startsAt: startsAt.toISOString(), type: "reminder", offsetMinutes: off }, runAt });
       }
     }
+  }
+}
+
+/**
+ * SIMULATED ad connections. Every company with sample data gets a simulated Meta Page receiving lead-form leads;
+ * Package 3 companies also get simulated Meta + Google ad accounts with 90 days of sample numbers. The sample
+ * lead-form leads are linked to the sample campaigns, so Reports can credit them. All labeled "simulated".
+ */
+async function sampleAds(tx: Tx, companyId: string, reporting: boolean, now: Date, rand: () => number) {
+  for (const platform of reporting ? (["meta", "google"] as const) : (["meta"] as const)) {
+    const client = simulatedClient(platform, companyId);
+    const [conn] = await tx.insert(adConnections).values({
+      companyId, platform, mode: "simulated", status: "connected", accountLabel: "Sample account (simulated)", accessTokenEnc: encrypt(`sim_token_${platform}`),
+      scopes: ["simulated"], connectedAt: new Date(now.getTime() - 95 * 86_400_000), lastSyncAt: now, lastSyncOkAt: now,
+    }).returning();
+    for (const pg of await client.listPages({ accessToken: "x" })) {
+      await tx.insert(adLeadSources).values({ companyId, connectionId: conn!.id, platform, kind: "meta_page", externalId: pg.externalId, name: pg.name, mode: "simulated", pageTokenEnc: encrypt("sim"), active: true, verifiedAt: conn!.connectedAt, lastCheckedAt: now });
+    }
+    if (!reporting) continue;
+    const [acct] = await client.listAdAccounts({ accessToken: "x" });
+    const [a] = await tx.insert(adAccounts).values({ companyId, connectionId: conn!.id, platform, externalId: acct!.externalId, name: acct!.name, currency: acct!.currency, timezone: acct!.timezone, selected: true }).returning();
+    const to = localDateKey(now, acct!.timezone ?? "UTC");
+    const from = new Date(Date.parse(`${to}T12:00:00Z`) - 89 * 86_400_000).toISOString().slice(0, 10);
+    const rows = await client.fetchDailyCampaignMetrics({ accessToken: "x" }, { externalId: acct!.externalId, currency: acct!.currency }, from, to);
+    for (const r of rows) {
+      await tx.insert(adDailyMetrics).values({ companyId, adAccountId: a!.id, platform, campaignExternalId: r.campaignId, day: r.day, currency: "USD", spendMicros: r.spendMicros, impressions: r.impressions, clicks: r.clicks, platformLeads: r.platformLeads, platformConversions: r.platformConversions, mode: "simulated", fetchedAt: now });
+    }
+    for (const c of SIM_CAMPAIGNS[platform]) await tx.insert(adCampaigns).values({ companyId, adAccountId: a!.id, platform, externalId: c.id, name: c.name, status: "ENABLED" });
+    await tx.insert(adSyncRuns).values({ companyId, connectionId: conn!.id, kind: "metrics", status: "succeeded", rangeFrom: from, rangeTo: to, rows: rows.length, startedAt: now, finishedAt: now });
+  }
+  // Link sample lead-form leads to sample campaigns (most of them; some arrive without a campaign id, as in real life).
+  const formLeads = await tx.select({ id: inquiries.id, source: inquiries.source, ext: inquiries.externalIds }).from(inquiries)
+    .where(and(eq(inquiries.companyId, companyId), inArray(inquiries.source, ["meta_lead_form", "google_lead_form"])));
+  for (const l of formLeads) {
+    if (rand() < 0.1) continue;
+    const list = SIM_CAMPAIGNS[l.source === "meta_lead_form" ? "meta" : "google"];
+    const camp = list[rand() < 0.7 ? 0 : 1]!;
+    await tx.update(inquiries).set({ externalIds: { ...l.ext, campaign_id: camp.id, lead_id: `sample_${l.id.slice(0, 8)}` } }).where(eq(inquiries.id, l.id));
   }
 }

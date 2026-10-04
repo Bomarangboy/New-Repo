@@ -11,6 +11,7 @@ import { roleCan } from "@/lib/authz/permissions";
 import { PERIOD_OPTIONS, parsePeriod, periodFor } from "@/lib/periods";
 import { activeFollowUps, stopActivity } from "@/server/sequences/manage";
 import { upcomingAppointments } from "@/server/booking/appointments";
+import { adSpendSummary } from "@/server/ads/reports";
 import { SourceBadge } from "@/components/appointment-bits";
 import { formatInZone, timezoneLabel } from "@/lib/timezones";
 import { overviewMetrics } from "@/server/metrics";
@@ -38,8 +39,8 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
   const sp = await searchParams;
   const days = parsePeriod(sp.days);
   const since = periodFor(days, ctx.timezone).start;
-  const [m, steps, follow, stops, upcoming] = await Promise.all([
-    overviewMetrics(ctx, days), onboardingChecklist(ctx), activeFollowUps(ctx, 5), stopActivity(ctx, since), upcomingAppointments(ctx, 7, 5),
+  const [m, steps, follow, stops, upcoming, ads] = await Promise.all([
+    overviewMetrics(ctx, days), onboardingChecklist(ctx), activeFollowUps(ctx, 5), stopActivity(ctx, since), upcomingAppointments(ctx, 7, 5), adSpendSummary(ctx, days),
   ]);
   const done = steps.filter((s) => s.status === "ready" || s.status === "na").length;
   const change = m.inquiries.changePct;
@@ -207,6 +208,23 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
               </ul>
             </Card>
           )}
+          {ads && (
+            <Card title={`Ad spend · last ${days} days`} actions={<Link href={`/app/reports?days=${days}`} className="text-sm font-medium text-brand-600 hover:underline">Reports</Link>}>
+              {!ads.connected ? <p className="text-sm text-muted">Connect Meta or Google Ads under Connected Accounts to see spend here.</p>
+                : ads.totals.length === 0 ? <p className="text-sm text-muted">No ad spend recorded in this period.</p> : (
+                <ul className="space-y-2">
+                  {ads.totals.map((t) => (
+                    <li key={t.currency}>
+                      <p className="text-2xl font-bold">{new Intl.NumberFormat("en-US", { style: "currency", currency: t.currency, maximumFractionDigits: 0 }).format(t.spendMicros / 1e6)}</p>
+                      <p className="text-xs text-muted">{t.leads} credited {t.leads === 1 ? "lead" : "leads"}{t.leads ? ` · ${new Intl.NumberFormat("en-US", { style: "currency", currency: t.currency }).format(t.spendMicros / 1e6 / t.leads)} per lead` : ""}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {ads.simulated && <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">Sample numbers from simulated ad accounts.</p>}
+              {ads.connected && ads.stale && <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">Not updated recently{ads.lastSyncOkAt ? ` (last ${formatInZone(ads.lastSyncOkAt, ctx.timezone)})` : ""} — may be out of date.</p>}
+            </Card>
+          )}
           {m.sales && (
             <Card title="Recorded sales">
               <div className="flex items-center gap-3">
@@ -214,7 +232,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
                 <div><p className="text-2xl font-bold">{money(m.sales.recordedCents)}</p><p className="text-xs text-muted">{m.sales.wonCount} won in the last {days} days</p></div>
               </div>
               {m.sales.wonWithoutValue > 0 && <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">{m.sales.wonWithoutValue} won {m.sales.wonWithoutValue === 1 ? "lead has" : "leads have"} no sale value recorded, so the total is incomplete.</p>}
-              <p className="mt-3 text-xs text-muted">Sales recorded in Bluewater. Advertising attribution comes with ad reporting.</p>
+              <p className="mt-3 text-xs text-muted">Sales your team recorded in Bluewater. Which campaigns they came from is under Reports.</p>
             </Card>
           )}
         </div>

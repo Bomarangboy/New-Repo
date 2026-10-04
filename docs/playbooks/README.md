@@ -16,7 +16,7 @@ printed binder), since you may need it when the site is down.
 | Failed or uncertain messages · stopped background jobs | 3 | Draft below |
 | Follow‑ups after stop · booking & timezone errors | 4 | Draft below |
 | Missing replies · credit exhaustion/provider suspension | 3–4 | Planned (needs live providers) |
-| Expired integration access · API changes · reporting discrepancies | 5 | Planned |
+| Expired integration access · API changes · reporting discrepancies | 5 | Draft below |
 | Database/storage exhaustion · accidental deletion · provider outages | 7 | Planned |
 
 ## Draft: Login or invitation failure
@@ -66,6 +66,22 @@ printed binder), since you may need it when the site is down.
   Add a note on both leads; nothing is lost.
 - **Wrong time:** times are stored as exact instants and shown in the business's timezone (Settings). Check the
   business timezone first, then the time zone in the Cal.com event. Reminders follow reschedules automatically.
+
+## Draft: Ad connection expired or ad leads stopped arriving
+- **Symptoms:** Connected Accounts shows "Needs reconnecting" or a problem; Health lists the client under Advertising
+  connections; leads from Facebook/Google stop appearing.
+- **Owner steps:** the client (or you in a support session with edit access) presses **Reconnect** and signs in again;
+  check the Page still shows **Receiving leads**. Leads Meta sent while access was broken are picked up by the hourly
+  missed‑lead check once reconnected (Meta keeps them 90 days). Google lead forms: check the webhook in Google Ads and
+  press **Send test data**.
+- **Developer steps:** check `ad_lead_events` for `failed` rows and the job errors on Health; check the platform's API
+  version hasn't been retired (`META_GRAPH_VERSION`, `GOOGLE_ADS_API_VERSION`).
+
+## Draft: "The numbers don't match the ad platform"
+- Spend is shown for the ad account's own days and currency, for the **selected** ad accounts only; platforms revise the
+  last few days (Bluewater re‑imports the last 7 days every 6 hours). Check the Reports freshness note first.
+- "Leads" in Bluewater are real records; the platform's lead/conversion counts use their own definitions (shown
+  separately). Leads without a campaign id are listed as not credited — this is expected (METRICS.md, D‑33).
 
 ## Draft: Exposed credentials (a key or password was shared or committed)
 - **Contain immediately:** rotate the secret at its source (Supabase API keys, Postmark token, database

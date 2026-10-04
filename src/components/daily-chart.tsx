@@ -7,9 +7,17 @@ import { useState } from "react";
  * names it. Columns ≤ 24px with 4px rounded tops on a shared baseline, hairline gridlines,
  * per-column hover/focus tooltip, and a table view so no value depends on hovering.
  */
-export function DailyChart({ data, label }: { data: { date: string; count: number }[]; label: string }) {
+export function DailyChart({ data, label, unit = ["inquiry", "inquiries"], currency }: {
+  data: { date: string; count: number }[]; label: string; unit?: [string, string];
+  /** When set, values are amounts in this currency (one chart per currency — never mixed). */
+  currency?: string;
+}) {
+  const val = (n: number) => (currency ? new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: n === 0 || n >= 10 ? 0 : 2, maximumFractionDigits: n === 0 || n >= 10 ? 0 : 2 }).format(n) : n.toLocaleString("en-US"));
+  /** Exact amounts (cents) for the tooltip and table; the axis uses rounded labels. */
+  const exact = (n: number) => (currency ? new Intl.NumberFormat("en-US", { style: "currency", currency }).format(n) : n.toLocaleString("en-US"));
+  const what = (n: number) => (currency ? unit[1] : n === 1 ? unit[0] : unit[1]);
   const [hover, setHover] = useState<number | null>(null);
-  const W = 720, H = 220, padL = 32, padR = 8, padT = 12, padB = 26;
+  const W = 720, H = 220, padL = currency ? 56 : 32, padR = 8, padT = 12, padB = 26;
   const max = Math.max(...data.map((d) => d.count), 0);
   const step = niceStep(max);
   const top = Math.max(step * Math.ceil(max / step), step);
@@ -27,7 +35,7 @@ export function DailyChart({ data, label }: { data: { date: string; count: numbe
         {ticks.map((t) => (
           <g key={t}>
             <line x1={padL} x2={W - padR} y1={y(t)} y2={y(t)} stroke="#e3e9f1" strokeWidth={1} />
-            <text x={padL - 6} y={y(t) + 4} textAnchor="end" className="fill-muted text-[11px]">{t.toLocaleString("en-US")}</text>
+            <text x={padL - 6} y={y(t) + 4} textAnchor="end" className="fill-muted text-[11px]">{val(t)}</text>
           </g>
         ))}
         {data.map((d, i) => {
@@ -46,7 +54,7 @@ export function DailyChart({ data, label }: { data: { date: string; count: numbe
               {/* Hit target is the whole day band, larger than the mark. */}
               <rect
                 x={padL + i * band} y={padT} width={band} height={H - padT - padB} fill="transparent" tabIndex={0}
-                aria-label={`${fmt(d.date)}: ${d.count} ${d.count === 1 ? "inquiry" : "inquiries"}`}
+                aria-label={`${fmt(d.date)}: ${exact(d.count)} ${what(d.count)}`}
                 onPointerEnter={() => setHover(i)} onPointerLeave={() => setHover(null)} onFocus={() => setHover(i)} onBlur={() => setHover(null)}
                 className="outline-none"
               />
@@ -62,8 +70,8 @@ export function DailyChart({ data, label }: { data: { date: string; count: numbe
           style={{ left: `${((padL + hover * band + band / 2) / W) * 100}%`, top: 0 }}
           role="status"
         >
-          <span className="font-semibold text-ink">{h.count.toLocaleString("en-US")}</span>{" "}
-          <span className="text-muted">{h.count === 1 ? "inquiry" : "inquiries"} · {fmt(h.date)}</span>
+          <span className="font-semibold text-ink">{exact(h.count)}</span>{" "}
+          <span className="text-muted">{what(h.count)} · {fmt(h.date)}</span>
         </div>
       )}
       <details className="mt-2 text-sm">
@@ -71,7 +79,7 @@ export function DailyChart({ data, label }: { data: { date: string; count: numbe
         <div className="mt-2 max-h-60 overflow-auto">
           <table className="w-full text-left text-sm">
             <thead className="text-muted"><tr><th className="py-1 font-medium">Day</th><th className="py-1 text-right font-medium">{label}</th></tr></thead>
-            <tbody className="tabular-nums">{data.map((d) => <tr key={d.date} className="border-t border-line"><td className="py-1">{fmt(d.date)}</td><td className="py-1 text-right">{d.count}</td></tr>)}</tbody>
+            <tbody className="tabular-nums">{data.map((d) => <tr key={d.date} className="border-t border-line"><td className="py-1">{fmt(d.date)}</td><td className="py-1 text-right">{exact(d.count)}</td></tr>)}</tbody>
           </table>
         </div>
       </details>

@@ -86,6 +86,11 @@ contact), `booking_settings` (encrypted Cal.com webhook secret, hashed address),
 reschedules) and `booking_events` (append-only webhook log) — all with forced RLS and composite company keys.
 Rules: MESSAGING.md (follow-ups) and BOOKING.md.
 
+Stage 5 added `ad_connections` (encrypted tokens), `ad_accounts`, `ad_lead_sources` (one active Facebook Page per
+company, enforced by a global unique index), `ad_lead_events` (once per platform lead id), `ad_campaigns`,
+`ad_daily_metrics` (unique per account/campaign/day; imports replace date ranges) and `ad_sync_runs`. Platform clients
+implement one connector interface (`server/ads/clients/types.ts`) — live Meta, live Google, or simulated. ADS.md.
+
 ## Background processing (built in Stage 3, D‑07)
 
 - A job row is written **in the same transaction** as the event that causes it (e.g. new inquiry ⇒
@@ -134,7 +139,7 @@ forced to simulated mode in code (not just hidden in the interface).
 
 - Supabase Auth path is not yet verified against a live project (sandbox could not run Supabase locally).
 - Messaging (Stage 3) and follow-ups/booking (Stage 4) are built, but only the simulated transport and signed test
-  webhooks have been exercised; Twilio/Postmark/Cal.com paths await accounts (MESSAGING.md, BOOKING.md). Ad
-  reporting, external CRM and demo prospect access are not built yet (Stages 5–7).
+  webhooks have been exercised; Twilio/Postmark/Cal.com paths await accounts (MESSAGING.md, BOOKING.md). External CRM, demo
+  prospect access and Stage 7 operations tooling are not built yet. Ad connections are simulated until approvals (ADS.md).
 - No rate limiting on sign‑in beyond account lockout (local) / Supabase's built‑in limits; Stage 7 adds
   edge rate limiting for public endpoints.

@@ -27,7 +27,20 @@ shows the time it was calculated. Values that have no data source yet show **"No
 | Follow-up results | Follow-up messages accepted by the provider (or simulated) in the period; follow-ups that finished all steps in the period; follow-ups that stopped early in the period, by reason. | Events in the period (by when they happened, not when the lead arrived). Stopping because the person replied or booked is a good outcome. |
 | Upcoming appointments | Scheduled (not cancelled) appointments starting in the next 7 days, from Cal.com, entered by the team, or simulated (labeled). | Times shown in the company's timezone. |
 
+## Advertising (Package 3) — Reports page
+
+| Metric | Definition | Notes |
+|---|---|---|
+| Ad spend | Sum of the platforms' reported spend for the selected ad accounts, for the ad accounts' own calendar days in the period. | Per currency; currencies are never added. Platforms revise recent days; the last 7 days are re-imported every 6 hours. |
+| Clicks, impressions | As reported by the platforms. | |
+| Platform leads / conversions | The platform's own count (Meta: "lead" actions; Google: conversions). | Their definitions, not Bluewater's; shown separately. "—" = not reported. |
+| Leads credited to campaigns | Bluewater leads **received in the period** whose campaign id came with the lead (ad lead forms), matched to that campaign. | Leads without a campaign id and website leads with only click ids are listed as not credited (D‑33). |
+| Cost per credited lead | Spend ÷ credited leads, per campaign or currency. | "—" when there are no credited leads. |
+| Booked / Won / Sales | Current stage of those leads; sales = values recorded on Won leads (USD). | An acquisition cohort, like the Pipeline. Sales aren't compared with non-USD spend. |
+| Leads and results by source | All leads received in the period by source, with booked/won share and recorded sales. | Works without any ad connection. Flags won leads without a value as incomplete. |
+| Freshness | When each connection last imported successfully; a warning after 30 hours. | Sample (simulated) numbers carry a banner. |
+
 **What these numbers do not claim.** A lead's campaign details are shown only when they arrived with the
 inquiry (UTM tags, Google/Facebook click IDs, lead-form IDs). Many inquiries can't be linked to a specific ad;
-that is normal and shown as such. Advertising spend, cost per lead and attributed revenue arrive with ad
-reporting (Package 3, Stage 5) and will keep platform-reported conversions separate from sales recorded here.
+that is normal and shown as such. Platform-reported conversions are kept separate from leads and sales recorded
+in Bluewater, and no revenue is credited to a campaign without the campaign id arriving with the lead.

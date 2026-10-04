@@ -39,6 +39,11 @@ Status key: **Decided** (owner approved) · **Assumed** (reasonable default; rev
 | D‑27 | Confirmations/reminders vs Cal.com's own | **Assumed** — Bluewater texts; Cal.com emails (Bluewater emails only if owner opts in) | — |
 | D‑28 | Stopped follow-ups | **Assumed** — never restart automatically (incl. after emergency stop, cancellation, upgrade) | — |
 | D‑29 | Which system owns appointments | **Assumed** — Cal.com for its bookings; Bluewater for ones the team enters | — |
+| D‑31 | Live ad connections | **Assumed** — off until owner sets `ADS_LIVE_ENABLED` (staging/production only); simulated elsewhere; "unavailable" for real customers until then | Live ads |
+| D‑32 | Text permission from ad lead forms | **Assumed** — none assumed; acknowledgment by email | — |
+| D‑33 | Crediting leads to campaigns | **Assumed** — only by campaign id delivered with the lead; no guessing from names | — |
+| D‑34 | Google lead forms | **Assumed** — via Google's lead-form webhook (no API approval needed) | — |
+| D‑35 | One Facebook Page → one company | **Assumed** — database rule | — |
 | D‑30 | Booking from an unknown person | **Assumed** — recorded as a new lead ("Cal.com booking"), never auto‑messaged except confirmations/reminders | — |
 
 ---
@@ -259,3 +264,31 @@ Each extra Supabase project adds compute cost (one Micro is covered by the inclu
 - Matching order: the reference in the booking link → a contact with the same email or phone → otherwise a new lead
   is recorded with source "Cal.com booking" (it goes through the normal duplicate checks). Such leads never get
   automatic follow‑ups; they do get the appointment confirmation/reminders (they asked for the appointment).
+
+### D‑31 Live advertising connections — Assumed (Stage 5)
+- Connecting real Meta/Google accounts needs Bluewater's approved apps and the owner's go‑ahead: `ADS_LIVE_ENABLED=true`
+  (refused by the app outside staging/production). Until then development, test and demo use **simulated** platforms
+  (labeled everywhere), and real customers in production see "Not available yet" — never sample numbers.
+
+### D‑32 Text permission from ad lead forms — Assumed (Stage 5)
+- Submitting a lead form shares contact details, but doesn't by itself record permission to receive automated texts.
+  Ad leads are acknowledged by **email**; follow‑ups use email unless permission is recorded. Mapping an explicit SMS
+  consent question on a client's form is a later change that should go through the legal review (D‑18).
+
+### D‑33 Crediting leads to campaigns — Assumed (Stage 5)
+- A lead counts toward a campaign only when the platform delivered the campaign id with the lead (lead forms).
+  Website leads with ad click ids or paid UTM tags are reported as "from ads, campaign unknown" rather than guessed
+  (Google click ids could later be resolved through the API — not built). Platform conversion counts are shown as the
+  platform's own numbers, next to — never merged with — Bluewater's leads and recorded sales.
+
+### D‑34 Google lead forms by webhook — Assumed (Stage 5)
+- Google's lead‑form webhook delivers full lead details with a shared key; it needs no Google Ads API approval, so it
+  can be used at launch. Each client gets a secret address and key (shown once; only hashes stored).
+
+### D‑35 One Facebook Page feeds one company — Assumed (Stage 5)
+- Enforced by a unique database index on active Pages, so a lead can never be routed to two clients. Moving a Page
+  between companies is an administrator task (turn it off in one, then on in the other).
+
+### Deferred: scheduled owner summaries (Package 3)
+- Weekly emailed summaries are part of Package 3 in the spec; planned for Stage 7 together with the reporting
+  definitions they summarize. The Reports page says so.

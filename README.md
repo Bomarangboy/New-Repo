@@ -4,12 +4,13 @@ A web platform that helps client businesses respond to every advertising lead, f
 see what their advertising produces. Each client company gets its own secure workspace; Bluewater
 administrators manage all companies from a separate area.
 
-> **Status:** Stages 1–4 of 7 complete — accounts, security, company isolation, permissions, administrator
+> **Status:** Stages 1–5 of 7 complete — accounts, security, company isolation, permissions, administrator
 > company management, built-in CRM, website form capture, CSV import/export, a dashboard from real data,
 > **messaging** (automatic acknowledgments, two-way inbox, opt-outs, team alerts, background jobs) and
 > **Package 2**: multi-day follow-up sequences, Cal.com booking, appointments, confirmations and reminders.
 > All messaging is **simulated** (clearly labeled) until real Twilio/Postmark accounts exist and you approve
-> go-live; Cal.com awaits a real account. Advertising connections (Meta/Google) are next. Nothing is deployed yet. See [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md).
+> go-live; Cal.com awaits a real account. **Advertising** (Stage 5): Facebook/Instagram and Google lead forms and
+> Package 3 ad reporting — simulated until Meta/Google approve Bluewater's apps. Nothing is deployed yet. See [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md).
 
 ## Documents
 
@@ -23,6 +24,7 @@ administrators manage all companies from a separate area.
 | [docs/PERMISSIONS.md](docs/PERMISSIONS.md) | Who can do what, per role, package and account status |
 | [docs/METRICS.md](docs/METRICS.md) | How every dashboard number is calculated |
 | [docs/MESSAGING.md](docs/MESSAGING.md) | How texts/emails are sent, stopped and received |
+| [docs/ADS.md](docs/ADS.md) | Meta & Google Ads: lead forms, reporting, approvals needed |
 | [docs/BOOKING.md](docs/BOOKING.md) | Cal.com connection, appointments, confirmations & reminders |
 | [docs/INTAKE.md](docs/INTAKE.md) | Connecting a client's website form (for web designers) |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Putting it online (Supabase + Vercel), domains, backups, rollback |

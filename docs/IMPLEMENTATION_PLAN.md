@@ -13,9 +13,9 @@ not a provider's live service unless stated.
 | 2 | Company lifecycle details, built‑in CRM (contacts, inquiries, notes, tasks, pipeline), website intake, CSV import, basic dashboard, demo dataset v1 | **Done** |
 | 3 | Messaging (templates, acknowledgment, notifications), two‑way inbox, durable jobs, stop rules, opt‑outs, suppression | **Done** (simulated; live Twilio/Postmark pending accounts & approval) |
 | 4 | Follow‑up sequences, booking connector (Cal.com, D‑10), appointments, confirmations & reminders | **Done** (simulated; live Cal.com check pending) |
-| 5 | Meta & Google connectors (lead forms + reporting), reporting definitions | **Next**; live use **blocked** by platform approvals |
-| 6 | First external CRM connector (D‑11) | Planned; waits for first client |
-| 7 | Billing/usage tooling, Health & Recovery Center, playbooks, backups & restore test, load test, deployment readiness | Planned |
+| 5 | Meta & Google connectors (lead forms + reporting), reporting definitions | **Done** (simulated; live use **blocked** by platform approvals) |
+| 6 | First external CRM connector (D‑11) | **Needs your input**: which CRM do pilot clients use? |
+| 7 | Billing/usage tooling, Health & Recovery Center, playbooks, backups & restore test, load test, scheduled summaries, deployment readiness | Next (can go before 6) |
 
 The sales demo grows with each stage (foundation is in Stage 1–2).
 
@@ -194,12 +194,44 @@ production build clean. Mutation checks (each safeguard broken on purpose → a 
 out‑of‑order guard, replaced‑booking guard, cancel‑before‑create guard, reminder time check, Cal.com email
 duplicate rule, reply re‑check, step crash recovery, step double‑handling guard, manual‑enroll confirmation.
 
-## Stage 5 plan (next)
-1. Connected Accounts for Meta (Facebook/Instagram) and Google Ads: OAuth sign‑in (no passwords), account selection,
-   encrypted tokens, renewal, disconnect, last sync, reconnect instructions. Live use blocked until Meta App Review /
-   business verification and Google Ads API developer‑token approval — built and tested with recorded/simulated responses.
-2. Lead‑form intake (all packages) through `recordInquiry()`, with webhook verification and missed‑lead reconciliation.
-3. Ad reporting (Package 3): daily spend, impressions, clicks, conversions by campaign; historical + incremental
-   import; freshness labels; cost per lead and attribution definitions in METRICS.md (no attributed revenue without
-   reliable links).
-4. Tests: token isolation, idempotent imports, rate limits/pagination, cross‑company access, P1/P2 blocked from reports.
+## Stage 5 checklist
+
+### Implemented and verified
+- [x] Schema + forced RLS: ad connections (encrypted tokens), ad accounts, lead sources (one active Facebook Page per
+      company — DB rule), lead events (once per platform lead id), campaigns, daily metrics (unique per account/campaign/day),
+      sync history (no deletes) — `drizzle/0008`, `0009`; cross‑company tests.
+- [x] Connector interface with Meta (Graph v26.0), Google Ads (REST v25) and simulated implementations; paging, rate‑limit
+      and expired‑token handling; appsecret_proof; exact money (micros). Unit‑tested against faked HTTP responses.
+- [x] Connecting: live OAuth with signed, expiring state bound to company + user + browser (re‑verified on return);
+      simulated connect in dev/test/demo; "unavailable" for real customers until approved (D‑31); reconnect, disconnect
+      (revokes at the platform, keeps history), token‑expiry warning, needs‑reconnect status.
+- [x] Lead forms (all packages): Meta webhook (signature, verification handshake) → job fetches lead with Page token;
+      hourly missed‑lead check; Google lead‑form webhook (secret address + key, test data verifies without creating a
+      lead). Recorded once through `recordInquiry()` with campaign/ad ids; acknowledgment by email (D‑32); account‑status rules.
+- [x] Reporting (Package 3): 90‑day backfill, 7‑day replace every 6 h (no double counting), per‑currency totals,
+      campaign table with platform numbers next to Bluewater leads/booked/won/sales, crediting only by campaign id (D‑33),
+      leads & results by source, freshness/stale warnings, daily spend chart with table view; Overview card.
+- [x] Connected Accounts UI (Pages, ad accounts, Google webhook setup shown once, simulated test leads), admin Health
+      section for ad connection problems, onboarding counts ad lead sources.
+- [x] Sample data: simulated Meta Page for sample companies; Package 3 sample company with simulated Meta + Google
+      accounts, 90 days of numbers and sample leads linked to sample campaigns. All labeled simulated/sample.
+
+### Implemented, awaiting live verification (blocked on approvals — owner action, DEPLOYMENT.md §3e / ADS.md)
+- [ ] Meta: Business verification + App Review (leads_retrieval, pages_*, ads_read, business_management), webhook registration.
+- [ ] Google: developer token (Basic access), OAuth consent verification for the adwords scope.
+- [ ] Google lead‑form webhook from a real form (no approval needed — just a deployed address).
+
+### Deferred
+- Weekly emailed owner summaries (Package 3) → Stage 7. Sending conversions back to platforms → not planned (needs review).
+
+## Verification (Stage 5 run, 2026‑10‑04)
+237 unit + integration tests (Vitest, real PostgreSQL) and 34 browser tests (Stages 1–5) passed; typecheck, lint and
+build clean. Mutation checks (each broken on purpose → a test failed): Meta signature, Google key, OAuth nonce, OAuth
+company/user/platform match, closed‑account rejection, Google test‑data handling, Package 3 check inside the import job,
+campaign‑id‑only crediting.
+
+## What's next
+- **Stage 6 (external CRM)** needs one answer from you: which CRM (if any) do the first pilot clients use? Until then the
+  built‑in CRM covers everything and "external CRM" stays labeled unavailable.
+- **Stage 7** can go first: usage & cost tracking per client, Health & Recovery Center additions, incident playbooks
+  tested, backups + restore test, load test, weekly owner summaries, and a deployment‑readiness checklist.

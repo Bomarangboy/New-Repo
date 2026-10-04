@@ -1,6 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 import { withCompanyDb } from "@/lib/db/context";
-import { bookingSettings, companies, companySenders, intakeSources, memberships, messageTemplates, messagingSettings, notifications, sequences } from "@/lib/db/schema";
+import { adLeadSources, bookingSettings, companies, companySenders, intakeSources, memberships, messageTemplates, messagingSettings, notifications, sequences } from "@/lib/db/schema";
 import { hasFeature } from "@/lib/authz/entitlements";
 import type { CompanyContext } from "@/lib/authz/context-types";
 import { timezoneLabel } from "@/lib/timezones";
@@ -17,7 +17,10 @@ export async function onboardingChecklist(ctx: CompanyContext): Promise<Onboardi
     const [company] = await tx.select().from(companies).where(eq(companies.id, ctx.companyId));
     const [{ n }] = (await tx.select({ n: sql<number>`count(*)::int` }).from(memberships)
       .where(and(eq(memberships.companyId, ctx.companyId), eq(memberships.status, "active")))) as [{ n: number }];
-    const sources = await tx.select({ active: intakeSources.active, last: intakeSources.lastReceivedAt }).from(intakeSources);
+    const sources = [
+      ...(await tx.select({ active: intakeSources.active, last: intakeSources.lastReceivedAt }).from(intakeSources)),
+      ...(await tx.select({ active: adLeadSources.active, last: adLeadSources.lastLeadAt }).from(adLeadSources)),
+    ];
     const senders = await tx.select({ channel: companySenders.channel, status: companySenders.status }).from(companySenders);
     const [settings] = await tx.select().from(messagingSettings).where(eq(messagingSettings.companyId, ctx.companyId));
     const [{ t }] = (await tx.select({ t: sql<number>`count(*)::int` }).from(messageTemplates)) as [{ t: number }];
@@ -46,9 +49,9 @@ export async function onboardingChecklist(ctx: CompanyContext): Promise<Onboardi
 function sourceStep(sources: { active: boolean; last: Date | null }[]): OnboardingStep {
   const active = sources.filter((x) => x.active);
   const base = { key: "sources", title: "Connect lead sources", owner: "you" as const };
-  if (active.some((x) => x.last)) return { ...base, detail: `${active.length} website form connection${active.length > 1 ? "s" : ""} receiving leads`, status: "ready" };
-  if (active.length) return { ...base, detail: "Form connected — send a test submission to confirm it works", status: "attention" };
-  return { ...base, detail: "Connect your website form under Connected Accounts. Facebook/Instagram and Google lead forms come later.", status: "pending" };
+  if (active.some((x) => x.last)) return { ...base, detail: `${active.filter((x) => x.last).length} of ${active.length} lead source${active.length > 1 ? "s" : ""} receiving leads`, status: "ready" };
+  if (active.length) return { ...base, detail: "Connected — send a test submission or test lead to confirm it works", status: "attention" };
+  return { ...base, detail: "Connect your website form and Facebook/Instagram or Google lead forms under Connected Accounts", status: "pending" };
 }
 
 function senderStep(senders: { channel: string; status: string }[]): OnboardingStep {

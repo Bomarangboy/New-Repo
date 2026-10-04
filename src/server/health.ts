@@ -26,8 +26,17 @@ export async function healthSnapshot(ctx: PlatformContext) {
       .from(jobs).leftJoin(companies, eq(companies.id, jobs.companyId)).where(eq(jobs.status, "dead")).orderBy(desc(jobs.updatedAt)).limit(50);
     const unknown = await tx.select({ id: messages.id, channel: messages.channel, to: messages.toAddress, transport: messages.transport, reason: messages.statusReason, providerId: messages.providerMessageId, createdAt: messages.createdAt, company: companies.name })
       .from(messages).innerJoin(companies, eq(companies.id, messages.companyId)).where(eq(messages.status, "unknown")).orderBy(desc(messages.createdAt)).limit(50);
+    const adProblems = await tx.execute<{ company: string; platform: string; status: string; last_error: string | null; last_sync_ok_at: Date | null; failed_leads: number }>(sql`
+      select co.name as company, c.platform, c.status, c.last_error, c.last_sync_ok_at,
+        (select count(*)::int from app.ad_lead_events e where e.company_id = c.company_id and e.platform = c.platform and e.status = 'failed' and e.received_at > now() - interval '7 days') as failed_leads
+      from app.ad_connections c join app.companies co on co.id = c.company_id
+      where c.status <> 'disconnected' and (c.status <> 'connected' or c.last_error is not null
+        or exists (select 1 from app.ad_lead_events e where e.company_id = c.company_id and e.platform = c.platform and e.status = 'failed' and e.received_at > now() - interval '7 days'))
+      order by co.name limit 50`);
     const e = env();
     return {
+      adProblems: adProblems.map((r) => ({ ...r, lastSyncOkAt: r.last_sync_ok_at ? new Date(r.last_sync_ok_at) : null })),
+      ads: { live: e.ADS_LIVE_ENABLED, metaApp: Boolean(e.META_APP_ID && e.META_APP_SECRET), googleApp: Boolean(e.GOOGLE_OAUTH_CLIENT_ID && e.GOOGLE_ADS_DEVELOPER_TOKEN) },
       dbMs,
       queue: { queued: q!.queued, due: q!.due, oldestDueSeconds: q!.oldest_due ? Math.round((Date.now() - new Date(q!.oldest_due).getTime()) / 1000) : null, running: q!.running, dead: q!.dead },
       lastMaintenance: maint?.v ? new Date(maint.v) : null,

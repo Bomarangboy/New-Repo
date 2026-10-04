@@ -17,7 +17,7 @@ test.describe.serial("Stage 2: leads, website forms, import", () => {
   test("owner connects a website form and gets setup instructions", async ({ page }) => {
     await signIn(page, "taylor@summit.test"); // Package 1, onboarding, no sample data
     await page.goto("/app/connected-accounts");
-    await expect(page.getByText("Not available yet").first()).toBeVisible(); // Meta/Google honestly labeled
+    await expect(page.getByRole("region", { name: "Meta (Facebook & Instagram)" })).toBeVisible(); // ad platforms listed (simulated in tests)
     await page.getByLabel("Name", { exact: true }).fill("Quote form");
     await page.getByLabel("Allowed websites (recommended)").fill("https://summit.example");
     await page.getByRole("button", { name: "Create form connection" }).click();

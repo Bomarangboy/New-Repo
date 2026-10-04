@@ -79,6 +79,18 @@ delivered or failed. Bluewater never re-sends these automatically, to avoid doub
 - If a booking shows up on a *new* lead instead of the existing one, the person booked from the general page with a
   different email. It's still recorded; you can note the link in the lead's notes.
 
+## Facebook, Instagram and Google ads (Stage 5)
+- **Lead forms (every package):** on Connected Accounts, connect Meta and turn on **Receive leads** for the client's
+  Facebook Page; for Google, press **Set up Google lead‑form webhook** and paste the address and key into the lead form
+  (then **Send test data**). New ad leads appear under Leads like any other, labeled with the form's name, and get the
+  automatic acknowledgment by email (lead forms don't give permission to text).
+- **Reports (Package 3):** choose which ad accounts to include. Reports shows spend, clicks, the platform's own lead
+  counts, the leads Bluewater received from each campaign, what they cost, and what they turned into (booked, won, sales).
+  A lead is only credited to a campaign when the platform sent the campaign with it — Bluewater never guesses.
+- **If a connection says "Needs reconnecting"** (Meta access lasts about 60 days), press **Reconnect** and sign in again.
+- Until Meta and Google approve Bluewater's apps, real accounts can't be connected; demo and test environments show
+  **simulated** accounts, clearly labeled.
+
 ## Cancellations
 On the company's admin page, **Record a cancellation request** with the end date and reason. The client keeps
 full service until that date; from then on the account is read-only (they can still export), new website

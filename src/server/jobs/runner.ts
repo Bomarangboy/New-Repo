@@ -49,7 +49,7 @@ export async function runDueJobs(opts: { limit?: number; timeBudgetMs?: number; 
  * Housekeeping, at most once a minute across all workers (advisory lock):
  * requeue jobs whose worker vanished, mark interrupted sends "unknown", apply scheduled cancellations.
  */
-export async function runMaintenance(now = new Date()): Promise<{ ran: boolean; staleJobs?: number; unknownSends?: number; cancellations?: number }> {
+export async function runMaintenance(now = new Date()): Promise<{ ran: boolean; staleJobs?: number; unknownSends?: number; cancellations?: number; adJobs?: number }> {
   const got = await withSystemDb("jobs: maintenance lock", async (tx) => {
     const r = await tx.execute<{ ok: boolean }>(sql`select pg_try_advisory_xact_lock(hashtextextended('bluewater:maintenance', 0)) as ok`);
     if (!r[0]?.ok) return false;
@@ -67,5 +67,7 @@ export async function runMaintenance(now = new Date()): Promise<{ ran: boolean; 
   const unknownSends = await markInterruptedSendsUnknown(now);
   const { applyDueCancellations } = await import("@/server/companies");
   const cancellations = await applyDueCancellations(now);
-  return { ran: true, staleJobs, unknownSends, cancellations };
+  const { scheduleAdWork } = await import("@/server/ads/sync");
+  const adJobs = await scheduleAdWork(now);
+  return { ran: true, staleJobs, unknownSends, cancellations, adJobs };
 }

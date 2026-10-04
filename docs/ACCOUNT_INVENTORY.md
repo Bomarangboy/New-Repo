@@ -14,8 +14,8 @@ the business — not an individual — owns them.
 | Vercel team | Web hosting, HTTPS | You (developer as member) | Pro monthly | Monthly | Owner email + 2FA | vercel.com/help | **To create** |
 | Postmark | Bluewater + client email | You | Monthly | Monthly | Owner email + 2FA | postmarkapp.com/support | **To create** |
 | Twilio | Texting (subaccount per client) | You | Usage + monthly fees | Monthly | Owner email + 2FA; recovery code | twilio.com/help | **To create** |
-| Meta for Developers / Business Manager | Lead forms + ad reporting app | You (Business Manager admin) | Free | App review renewals | Business Manager admins (keep 2) | developers.facebook.com/support | **To create** (Stage 5) |
-| Google Cloud + Google Ads API | Ad reporting / lead forms | You | Free (API) | — | Google account 2FA | developers.google.com/google-ads/api/support | **To create** (Stage 5) |
+| Meta for Developers / Business Manager | Lead forms + ad reporting app | You (Business Manager admin) | Free | App review renewals; data-use checkup yearly | Business Manager admins (keep 2) | developers.facebook.com/support | **To create** — app built for it (ADS.md) |
+| Google Cloud + Google Ads manager account | Ad reporting (API); lead forms use webhooks | You | Free (API) | Developer-token access level | Google account 2FA | developers.google.com/google-ads/api/support | **To create** — built for it (ADS.md) |
 | Cal.com (one per client) | Client's booking page; webhooks to Bluewater | **The client** | Client's plan (free tier may suffice — verify) | — | Client's own login | cal.com/help | Per client, at onboarding |
 | Uptime monitor | Independent alerts | You | Free tier | — | — | vendor | **To create** (Stage 7) |
 | Error tracking (e.g. Sentry) | Error reports | You | Free tier | — | — | vendor | **To create** (Stage 7) |

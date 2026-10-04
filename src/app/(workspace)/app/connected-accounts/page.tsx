@@ -11,6 +11,8 @@ import { HONEYPOT_FIELD } from "@/server/intake/website";
 import { createSourceAction, removeSecretAction, updateSourceAction } from "./actions";
 import { SecretForm } from "./secret-form";
 import { BookingPageForm, DisconnectBooking, WebhookSetup } from "./booking-card";
+import { AdPlatformSection } from "./ads-card";
+import { adsOverview } from "@/server/ads/connections";
 import { getBookingSettings } from "@/server/booking/settings";
 import { isSimulatedEnvironment } from "@/lib/env";
 
@@ -29,19 +31,22 @@ function Unavailable({ icon: Icon, name, what, why }: { icon: typeof Globe; name
   );
 }
 
-export default async function ConnectedAccountsPage({ searchParams }: { searchParams: Promise<{ created?: string }> }) {
+export default async function ConnectedAccountsPage({ searchParams }: { searchParams: Promise<{ created?: string; connected?: string; problem?: string }> }) {
   const ctx = await pageContext("integration.view", "lead_sources");
-  const { created } = await searchParams;
+  const { created, connected, problem } = await searchParams;
   const sources = await listIntakeSources(ctx);
   const problems = await recentIntakeProblems(ctx, 10);
   const canManage = roleCan(ctx.role, "integration.manage") && ctx.policy.login === "full";
   const base = env().APP_BASE_URL;
   const booking = await getBookingSettings(ctx);
+  const ads = await adsOverview(ctx).catch(() => null);
 
   return (
     <>
       <PageHeader title="Connected Accounts" subtitle="Where your leads come from, and the tools linked to Bluewater. Bluewater never asks for your account passwords." />
 
+      {connected && <p role="status" className="mb-6 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{connected === "meta" ? "Meta" : "Google Ads"} connected. Choose what to use below.</p>}
+      {problem && <p role="alert" className="mb-6 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{problem.slice(0, 300)}</p>}
       {created && <p role="status" className="mb-6 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">Form connection created. Send the setup instructions below to whoever manages your website.</p>}
       <Card title="Website forms" className="mb-6">
         <p className="-mt-2 mb-4 text-sm text-muted">Send inquiries from your website&apos;s contact or quote form straight into Bluewater.</p>
@@ -136,12 +141,9 @@ export default async function ConnectedAccountsPage({ searchParams }: { searchPa
       </Card>
 
       <Card title="Advertising accounts" className="mb-6">
-        <div className="space-y-3">
-          <Unavailable icon={Megaphone} name="Meta (Facebook & Instagram)" what="Receive Facebook and Instagram lead-form leads automatically. Package 3 adds ad spend and results."
-            why="Bluewater's Meta connection is waiting for Meta's app review and business verification. You'll connect by signing in to Meta — never by sharing a password." />
-          <Unavailable icon={Megaphone} name="Google Ads" what="Receive Google lead-form leads. Package 3 adds ad spend, clicks and results."
-            why="Bluewater's Google Ads connection is waiting for Google's API access approval." />
-        </div>
+        {ads ? (
+          <div className="space-y-5">{ads.map((p) => <AdPlatformSection key={p.platform} p={p} tz={ctx.timezone} canManage={canManage} />)}</div>
+        ) : <p className="text-sm text-muted">Only people who manage connections can see advertising accounts.</p>}
       </Card>
 
       {booking && (

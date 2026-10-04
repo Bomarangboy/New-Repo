@@ -2,6 +2,8 @@ import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
+  date,
+  doublePrecision,
   foreignKey,
   index,
   jsonb,
@@ -886,4 +888,197 @@ export const bookingEvents = app.table(
     receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("booking_events_once_key").on(t.companyId, t.bodyHash), index("booking_events_company_idx").on(t.companyId, t.receivedAt)],
+);
+
+/* =====================================================================================
+ * Stage 5: advertising connections (Meta, Google Ads) — lead forms (all packages) and
+ * ad reporting (Package 3). Tokens are encrypted; nothing here is readable by browsers.
+ * ===================================================================================== */
+
+/** One connection per platform per company, made by signing in to the platform (never with a password). */
+export const adConnections = app.table(
+  "ad_connections",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    platform: text("platform").notNull(), // meta | google
+    /** live = real platform API; simulated = sample data (development, test, demo only). */
+    mode: text("mode").notNull(),
+    status: text("status").notNull().default("connected"), // connected | needs_reconnect | error | disconnected
+    /** Who/what is connected, as the platform names it (e.g. the Facebook user or Google account). */
+    accountLabel: text("account_label"),
+    accessTokenEnc: text("access_token_enc"),
+    refreshTokenEnc: text("refresh_token_enc"),
+    tokenExpiresAt: timestamp("token_expires_at", { withTimezone: true }),
+    scopes: jsonb("scopes").$type<string[]>().notNull().default([]),
+    connectedByUserId: uuid("connected_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    connectedAt: timestamp("connected_at", { withTimezone: true }),
+    lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
+    lastSyncOkAt: timestamp("last_sync_ok_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    lastErrorAt: timestamp("last_error_at", { withTimezone: true }),
+    disconnectedAt: timestamp("disconnected_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    unique("ad_connections_company_id_key").on(t.companyId, t.id),
+    uniqueIndex("ad_connections_platform_key").on(t.companyId, t.platform),
+  ],
+);
+
+/** Ad accounts visible through a connection; only "selected" ones are reported on. */
+export const adAccounts = app.table(
+  "ad_accounts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    connectionId: uuid("connection_id").notNull(),
+    platform: text("platform").notNull(),
+    /** act_123… (Meta) or a 10-digit customer id (Google). */
+    externalId: text("external_id").notNull(),
+    name: text("name").notNull(),
+    currency: text("currency"),
+    timezone: text("timezone"),
+    selected: boolean("selected").notNull().default(false),
+    ...timestamps,
+  },
+  (t) => [
+    unique("ad_accounts_company_id_key").on(t.companyId, t.id),
+    foreignKey({ columns: [t.companyId, t.connectionId], foreignColumns: [adConnections.companyId, adConnections.id], name: "ad_accounts_connection_fk" }).onDelete("cascade"),
+    uniqueIndex("ad_accounts_external_key").on(t.companyId, t.platform, t.externalId),
+  ],
+);
+
+/**
+ * Where ad lead-form leads come from: a Facebook Page (its lead forms) or a Google lead-form webhook.
+ * A Facebook Page can belong to only ONE company (global unique index), so a lead is never routed twice.
+ */
+export const adLeadSources = app.table(
+  "ad_lead_sources",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    connectionId: uuid("connection_id"),
+    platform: text("platform").notNull(), // meta | google
+    kind: text("kind").notNull(), // meta_page | google_webhook
+    externalId: text("external_id"),
+    name: text("name").notNull(),
+    mode: text("mode").notNull(), // live | simulated
+    pageTokenEnc: text("page_token_enc"),
+    /** SHA-256 of the secret path + google_key (Google webhook). */
+    webhookKeyHash: text("webhook_key_hash"),
+    googleKeyHash: text("google_key_hash"),
+    active: boolean("active").notNull().default(true),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    lastLeadAt: timestamp("last_lead_at", { withTimezone: true }),
+    lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    ...timestamps,
+  },
+  (t) => [
+    unique("ad_lead_sources_company_id_key").on(t.companyId, t.id),
+    foreignKey({ columns: [t.companyId, t.connectionId], foreignColumns: [adConnections.companyId, adConnections.id], name: "ad_lead_sources_connection_fk" }).onDelete("cascade"),
+    uniqueIndex("ad_lead_sources_meta_page_key").on(t.platform, t.externalId).where(sql`${t.kind} = 'meta_page' and ${t.active}`),
+    uniqueIndex("ad_lead_sources_webhook_key").on(t.webhookKeyHash).where(sql`${t.webhookKeyHash} is not null`),
+  ],
+);
+
+/** Every lead notification from an ad platform, so a lead is recorded exactly once and failures can be retried. */
+export const adLeadEvents = app.table(
+  "ad_lead_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    leadSourceId: uuid("lead_source_id").notNull(),
+    platform: text("platform").notNull(),
+    externalLeadId: text("external_lead_id").notNull(),
+    formId: text("form_id"),
+    /** Google sends the lead's answers in the notification; kept only until processed. */
+    payload: jsonb("payload").$type<Record<string, unknown> | null>(),
+    status: text("status").notNull().default("received"), // received | recorded | failed | test | rejected
+    isTest: boolean("is_test").notNull().default(false),
+    via: text("via").notNull().default("webhook"), // webhook | reconcile | simulated
+    inquiryId: uuid("inquiry_id"),
+    attempts: integer("attempts").notNull().default(0),
+    error: text("error"),
+    receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
+    processedAt: timestamp("processed_at", { withTimezone: true }),
+  },
+  (t) => [
+    foreignKey({ columns: [t.companyId, t.leadSourceId], foreignColumns: [adLeadSources.companyId, adLeadSources.id], name: "ad_lead_events_source_fk" }).onDelete("cascade"),
+    uniqueIndex("ad_lead_events_once_key").on(t.companyId, t.platform, t.externalLeadId),
+    index("ad_lead_events_status_idx").on(t.companyId, t.status, t.receivedAt),
+  ],
+);
+
+export const adCampaigns = app.table(
+  "ad_campaigns",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    adAccountId: uuid("ad_account_id").notNull(),
+    platform: text("platform").notNull(),
+    externalId: text("external_id").notNull(),
+    name: text("name").notNull(),
+    status: text("status"),
+    ...timestamps,
+  },
+  (t) => [
+    foreignKey({ columns: [t.companyId, t.adAccountId], foreignColumns: [adAccounts.companyId, adAccounts.id], name: "ad_campaigns_account_fk" }).onDelete("cascade"),
+    uniqueIndex("ad_campaigns_external_key").on(t.companyId, t.adAccountId, t.externalId),
+  ],
+);
+
+/**
+ * Platform-reported daily numbers per campaign, in the AD ACCOUNT's currency and timezone.
+ * Re-importing a day replaces it (platforms revise recent days), so totals never double count.
+ */
+export const adDailyMetrics = app.table(
+  "ad_daily_metrics",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    adAccountId: uuid("ad_account_id").notNull(),
+    platform: text("platform").notNull(),
+    campaignExternalId: text("campaign_external_id").notNull(),
+    day: date("day", { mode: "string" }).notNull(),
+    currency: text("currency").notNull(),
+    /** Spend in millionths of the currency unit (exact; no floating point). */
+    spendMicros: bigint("spend_micros", { mode: "number" }).notNull(),
+    impressions: bigint("impressions", { mode: "number" }).notNull(),
+    clicks: bigint("clicks", { mode: "number" }).notNull(),
+    /** Leads the platform counts for itself (lead forms). Null = not reported (not zero). */
+    platformLeads: integer("platform_leads"),
+    /** The platform's own conversion count (its definition). Null = not reported. */
+    platformConversions: doublePrecision("platform_conversions"),
+    mode: text("mode").notNull(), // live | simulated
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    foreignKey({ columns: [t.companyId, t.adAccountId], foreignColumns: [adAccounts.companyId, adAccounts.id], name: "ad_daily_metrics_account_fk" }).onDelete("cascade"),
+    uniqueIndex("ad_daily_metrics_key").on(t.companyId, t.adAccountId, t.campaignExternalId, t.day),
+    index("ad_daily_metrics_day_idx").on(t.companyId, t.day),
+  ],
+);
+
+/** History of imports (shown as "last updated" and used to diagnose problems). */
+export const adSyncRuns = app.table(
+  "ad_sync_runs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    connectionId: uuid("connection_id").notNull(),
+    kind: text("kind").notNull(), // metrics | leads_reconcile
+    status: text("status").notNull(), // running | succeeded | failed
+    rangeFrom: date("range_from", { mode: "string" }),
+    rangeTo: date("range_to", { mode: "string" }),
+    rows: integer("rows"),
+    error: text("error"),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+  },
+  (t) => [
+    foreignKey({ columns: [t.companyId, t.connectionId], foreignColumns: [adConnections.companyId, adConnections.id], name: "ad_sync_runs_connection_fk" }).onDelete("cascade"),
+    index("ad_sync_runs_recent_idx").on(t.companyId, t.startedAt),
+  ],
 );

@@ -21,12 +21,13 @@ Status: ✅ Implemented & verified · 🟡 Implemented, awaiting live verificati
 | 4 | Isolation: CRM records, search, exports, intake | ✅ | RLS + composite keys `0003_crm_security.sql` | crm.test.ts | |
 | 4 | Isolation: conversations, jobs, senders, suppressions, notifications | ✅ | RLS `0005_messaging_security.sql` | messaging.test.ts | |
 | 4 | Isolation: sequences, enrollments, appointments, booking connection | ✅ | RLS `0007_sequences_booking_security.sql` | sequences/booking isolation tests | |
-| 4 | Isolation: files, reports, integrations, tickets | ⬜ 5–7 | Same pattern | Each stage adds cross‑company tests | |
+| 4 | Isolation: ad connections, tokens, lead sources, metrics | ✅ | RLS `0009_ads_security.sql`, one‑Page‑one‑company index | ads.test.ts isolation | |
+| 4 | Isolation: files, tickets | ⬜ 7 | Same pattern | Each stage adds cross‑company tests | |
 | 4 | Secrets out of frontend/logs/commits | ✅ | `env.ts`, `.gitignore`, `redactDetails` | unit tests | |
 | 4 | Controlled support access, no unrestricted impersonation | ✅ | `support_access_grants` | integration | |
 | 4 | Admin account recovery without bypass | ✅ (documented) | CLI‑only admin creation | — | OWNER_MANUAL.md |
 | 5 | Website form intake, manual entry, CSV import | ✅ | `server/intake/website.ts`, `server/crm/*`, `/api/intake/[key]` | intake.test.ts, crm.test.ts, stage2 browser tests | Live HTTP behind Vercel 🟡 |
-| 5 | Ad lead‑form intake | ⬜ 5 | | | ⛔ Meta App Review / Google access |
+| 5 | Ad lead‑form intake (Meta webhook + fetch + hourly reconciliation; Google webhook) | ✅ 🎭 / 🟡 | `server/ads/leads.ts`, `/api/webhooks/meta`, `/api/webhooks/google-leads/[key]` | ads.test.ts, ads-rules unit, stage5 browser | ⛔ Meta App Review for live; Google webhook needs only deployment |
 | 5 | Dedupe, repeat inquiries, idempotency, no messaging on imports | ✅ | `record-inquiry.ts`, intake events, `automation_origin` | crm/intake tests incl. deterministic race | Send-side idempotency in Stage 3 |
 | 5 | Required lead fields, tracking, consent evidence, history | ✅ | schema `inquiries`, `consent_records`, `inquiry_events` | crm/intake tests | |
 | 5 | Search, filters, pagination, safe export | ✅ | `/app/leads`, `/app/leads/export` | crm.test.ts, browser | |
@@ -44,8 +45,11 @@ Status: ✅ Implemented & verified · 🟡 Implemented, awaiting live verificati
 | 9 | Booking links, booking‑to‑lead association, create/reschedule/cancel, sequence cancellation | ✅ / 🟡 | `server/booking/*`, `/api/webhooks/calcom/[key]` | booking.test.ts (14), booking-rules unit, stage4 browser | Live Cal.com check pending |
 | 9 | Confirmations & reminders without duplicating Cal.com's | ✅ 🎭 | `booking/messages.ts`, D‑27 | booking.test.ts | |
 | 9 | Timezones/DST, authoritative system, sync failures recorded | ✅ | `formatAppointmentTime`, `localToInstant`, `booking_events`, D‑29 | unit + integration | |
-| 10 | Meta/Google connections | ⬜ 5 | | | ⛔ approvals |
-| 11 | Dashboards & reporting definitions | ✅ (P1/P2 incl. follow‑ups & appointments) / ⬜ 5 | `server/metrics.ts`, METRICS.md, Help page | reconciliation tests, DST unit tests | Ad metrics in Stage 5 |
+| 10 | Connected Accounts: OAuth (no passwords), account/Page selection, encrypted tokens, renewal, disconnect, last sync, errors & reconnect | ✅ 🎭 / 🟡 | `server/ads/connections.ts`, `config.ts`, ads-card | ads.test.ts (state forgery, disconnect, isolation) | ⛔ Meta/Google approvals (ADS.md) |
+| 10 | Pagination, rate limits, historical + incremental import | ✅ | `clients/*`, `sync.ts` | ads-rules unit (faked HTTP), ads.test.ts | |
+| 10 | Support matrix; connected ≠ every function; blocked shown as blocked | ✅ | ADS.md, Connected Accounts copy | stage5 browser | |
+| 11 | Dashboards & reporting definitions (P1/P2) | ✅ | `server/metrics.ts`, METRICS.md, Help page | reconciliation tests, DST unit tests | |
+| 11 | Package 3: spend/performance, campaigns, conversion rates, recorded vs attributed sales, freshness, currencies | ✅ 🎭 | `server/ads/reports.ts`, Reports page, Overview card | ads.test.ts (totals reconcile, crediting rules) | Scheduled summaries → Stage 7 |
 | 12 | All Customers directory + filters | ✅ | `/admin` | browser test | |
 | 12 | Separate lifecycle / billing / suspension | ✅ | schema + `account-policy.ts` | unit + integration | |
 | 12 | Package & lifecycle history, reactivation, churn reason | ✅ | `server/companies.ts` | integration | |

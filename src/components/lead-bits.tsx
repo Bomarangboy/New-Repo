@@ -14,6 +14,8 @@ const SOURCE = {
 
 export function sourceName(source: string, label?: string | null): string {
   if (source === "website_form" && label) return label;
+  // Ad lead forms: show the form's name (and any "simulated"/"sample" label) next to the platform.
+  if ((source === "meta_lead_form" || source === "google_lead_form") && label) return /facebook|instagram|google/i.test(label) ? label : `${SOURCE[source]} — ${label}`;
   return SOURCE[source] ?? source;
 }
 
