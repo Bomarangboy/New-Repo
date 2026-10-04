@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Building2, Plus, Search } from "lucide-react";
 import { Badge, EmptyState, LIFECYCLE_TONES, PageHeader } from "@/components/ui";
 import { requirePlatformAdmin } from "@/lib/authz/guard";
-import { PACKAGE_LABELS } from "@/lib/authz/entitlements";
+import { PACKAGE_NAMES } from "@/lib/authz/entitlements";
 import type { LifecycleStatus } from "@/lib/authz/account-policy";
 import { LIFECYCLE, listCompanies } from "@/server/companies";
 
@@ -46,7 +46,7 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
                 <tr key={r.id} className="hover:bg-brand-50/40">
                   <td className="px-4 py-3"><Link href={`/admin/companies/${r.id}`} className="font-semibold text-ink hover:text-brand-600">{r.name}</Link>{r.kind === "internal_test" && <span className="ml-2"><Badge>Test</Badge></span>}</td>
                   <td className="px-4 py-3 text-muted">{r.ownerEmail ?? <span className="italic">No owner yet</span>}</td>
-                  <td className="px-4 py-3">{PACKAGE_LABELS[r.package].split(" — ")[1]}</td>
+                  <td className="px-4 py-3">{PACKAGE_NAMES[r.package]}</td>
                   <td className="px-4 py-3"><span className="flex flex-wrap gap-1"><Badge tone={LIFECYCLE_TONES[r.lifecycleStatus]} dot>{r.lifecycleStatus}</Badge>{r.suspended && <Badge tone="red">Suspended</Badge>}{r.cancellationRequestedAt && r.lifecycleStatus !== "churned" && r.serviceEndsAt && <Badge tone="amber">{`Cancels ${r.serviceEndsAt.toLocaleDateString("en-US", { timeZone: "UTC" })}`}</Badge>}</span></td>
                   <td className="px-4 py-3 text-muted">{r.serviceStartDate ? r.serviceStartDate.toLocaleDateString("en-US") : "—"}</td>
                 </tr>

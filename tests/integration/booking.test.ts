@@ -272,10 +272,10 @@ describe("appointments the team manages", () => {
 describe("packages and isolation", () => {
   it("Package 1 can't connect booking or add appointments", async () => {
     const p1 = await setup("instant_response");
-    await expect(saveBookingPage(p1.owner, "https://cal.com/x/y")).rejects.toThrow(/Package 2/);
-    await expect(setUpBookingWebhook(p1.owner)).rejects.toThrow(/Package 2/);
+    await expect(saveBookingPage(p1.owner, "https://cal.com/x/y")).rejects.toThrow(/Bluewater Engage/);
+    await expect(setUpBookingWebhook(p1.owner)).rejects.toThrow(/Bluewater Engage/);
     const id = await submit(p1, { name: "Jay", email: "jay@example.com" });
-    await expect(createManualAppointment(p1.owner, { inquiryId: id, date: "2030-01-01", time: "10:00", durationMinutes: 30 })).rejects.toThrow(/Package 2/);
+    await expect(createManualAppointment(p1.owner, { inquiryId: id, date: "2030-01-01", time: "10:00", durationMinutes: 30 })).rejects.toThrow(/Bluewater Engage/);
     expect(await getBookingSettings(p1.owner)).toBeNull();
   });
 

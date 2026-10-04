@@ -30,7 +30,7 @@ The sales demo grows with each stage (foundation is in Stage 1–2).
       (no‑context sees nothing; company A cannot read/insert/update/move rows into B; restricted columns; append‑only log; no context leakage between transactions). Mutation‑checked: disabling isolation makes 6 tests fail.
 - [x] Server authorization: membership, role, package, account status, MFA — **tests:** `authorization.test.ts` (20+ cases incl. forged company IDs, support grants, expired grants, revoked sessions).
 - [x] Roles: platform administrator / owner / employee + time‑limited support access; role×action table in PERMISSIONS.md (generated from code; test fails if out of date).
-- [x] Package entitlement matrix enforced on server (Package 1 blocked from sequences/booking/reports even by direct URL — browser test).
+- [x] Package entitlement matrix enforced on server (Bluewater Connect blocked from sequences/booking/reports even by direct URL — browser test).
 - [x] Account‑status behavior matrix (onboarding/active/paused/churned/archived + suspension + demo expiry).
 - [x] Sign‑in, sign‑out, account lockout after 5 failures (local), password reset (single‑use, ends other sessions), change password.
 - [x] Two‑step verification (TOTP): enrollment with QR, replay protection, mandatory for administrators, enforced before any workspace access.
@@ -89,14 +89,14 @@ Last run: see the Stage 2 verification below.
       pagination; phone‑friendly card layout.
 - [x] Lead detail: inquiry, campaign/tracking details (with an honest "can't be linked to an ad" message), contact
       edit, stage (New → Contacted → Booked → Won/Lost, lost reason), assignment, sale value (blank = not recorded),
-      notes, tasks (Package 2), consent evidence, other inquiries from the same person, full history.
-- [x] Pipeline board (Package 2+; Package 1 refused on the server — browser test).
+      notes, tasks (Bluewater Engage), consent evidence, other inquiries from the same person, full history.
+- [x] Pipeline board (Bluewater Engage or Insight; Bluewater Connect refused on the server — browser test).
 - [x] CSV import: preview with row‑numbered problems, duplicates within the file, date formats, 2 MB/5,000‑row
       limits; one‑time commit; re‑import skips rows already imported; never enrolls in messaging; owner only.
 - [x] CSV export: owner only, logged, spreadsheet‑formula injection blocked, no caching.
 - [x] Overview from real data: inquiries vs previous period (null when no base), daily chart with table view,
-      sources, connected forms, recent leads, unassigned open leads, pipeline cohort (P2), recorded sales with
-      "incomplete" warning (P3). Definitions in METRICS.md and the Help page. **Tests:** totals reconcile
+      sources, connected forms, recent leads, unassigned open leads, pipeline cohort (Engage), recorded sales with
+      "incomplete" warning (Insight). Definitions in METRICS.md and the Help page. **Tests:** totals reconcile
       (integration + browser), timezone/DST period unit tests.
 - [x] Offboarding: removing an employee unassigns their open leads/tasks with a history entry.
 - [x] Scheduled cancellation: admin records request + end date; access rules treat the account as churned at
@@ -180,7 +180,7 @@ typecheck, lint and production build clean. Mutation checks: idempotency, status
 - [x] Appointments page (upcoming, past, cancelled; outcome marking; source labels incl. "Simulated").
 - [x] Confirmations & reminders: settings, editable versioned wording, Cal.com duplicate avoidance (D‑27),
       re‑check before sending; reminders moved with reschedules.
-- [x] Overview (Package 2+): active follow‑ups, follow‑up results and why they stopped, upcoming appointments.
+- [x] Overview (Bluewater Engage or Insight): active follow‑ups, follow‑up results and why they stopped, upcoming appointments.
       Onboarding steps for follow‑up and booking from real data. Team alerts for booking changes.
 - [x] Sample data: a sequence, follow‑ups at every stage, simulated appointments (labeled).
 
@@ -208,12 +208,12 @@ duplicate rule, reply re‑check, step crash recovery, step double‑handling gu
 - [x] Lead forms (all packages): Meta webhook (signature, verification handshake) → job fetches lead with Page token;
       hourly missed‑lead check; Google lead‑form webhook (secret address + key, test data verifies without creating a
       lead). Recorded once through `recordInquiry()` with campaign/ad ids; acknowledgment by email (D‑32); account‑status rules.
-- [x] Reporting (Package 3): 90‑day backfill, 7‑day replace every 6 h (no double counting), per‑currency totals,
+- [x] Reporting (Bluewater Insight): 90‑day backfill, 7‑day replace every 6 h (no double counting), per‑currency totals,
       campaign table with platform numbers next to Bluewater leads/booked/won/sales, crediting only by campaign id (D‑33),
       leads & results by source, freshness/stale warnings, daily spend chart with table view; Overview card.
 - [x] Connected Accounts UI (Pages, ad accounts, Google webhook setup shown once, simulated test leads), admin Health
       section for ad connection problems, onboarding counts ad lead sources.
-- [x] Sample data: simulated Meta Page for sample companies; Package 3 sample company with simulated Meta + Google
+- [x] Sample data: simulated Meta Page for sample companies; Bluewater Insight sample company with simulated Meta + Google
       accounts, 90 days of numbers and sample leads linked to sample campaigns. All labeled simulated/sample.
 
 ### Implemented, awaiting live verification (blocked on approvals — owner action, DEPLOYMENT.md §3e / ADS.md)
@@ -227,7 +227,7 @@ duplicate rule, reply re‑check, step crash recovery, step double‑handling gu
 ## Verification (Stage 5 run, 2026‑10‑04)
 237 unit + integration tests (Vitest, real PostgreSQL) and 34 browser tests (Stages 1–5) passed; typecheck, lint and
 build clean. Mutation checks (each broken on purpose → a test failed): Meta signature, Google key, OAuth nonce, OAuth
-company/user/platform match, closed‑account rejection, Google test‑data handling, Package 3 check inside the import job,
+company/user/platform match, closed‑account rejection, Google test‑data handling, Bluewater Insight check inside the import job,
 campaign‑id‑only crediting.
 
 ## Stage 7 checklist
@@ -247,7 +247,7 @@ campaign‑id‑only crediting.
       with paid/failed/void and past‑due alerting after grace; owner read‑only Billing page.
 - [x] Support requests with BW‑ references, admin inbox, replies by email, internal notes; service notices with
       recipient‑count confirmation; Help page with emergency‑pause guidance.
-- [x] Weekly owner summaries (Package 3), one per owner per week, opt‑out in Settings.
+- [x] Weekly owner summaries (Bluewater Insight), one per owner per week, opt‑out in Settings.
 - [x] Retention policy (RETENTION.md) and restricted deletion (archived only, exact name, MFA, DB‑enforced).
 - [x] Sales demo: prospect workspaces (create, invite, reset, extend, end access), presentation controls, automatic
       cleanup 7 days after expiry, presentation script (DEMO.md). Refused in production.

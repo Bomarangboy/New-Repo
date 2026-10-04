@@ -138,7 +138,7 @@ describe("pipeline, sales, notes and tasks", () => {
 
   it("tasks are a Package 2 feature, enforced on the server", async () => {
     const r = await createLeadManually(summit, { fullName: "Task", email: "task@summit.test" });
-    await expect(addTask(summit, r.inquiry.id, { title: "Call back", dueAt: null, assignedUserId: null })).rejects.toThrow(/Package 2/);
+    await expect(addTask(summit, r.inquiry.id, { title: "Call back", dueAt: null, assignedUserId: null })).rejects.toThrow(/Bluewater Engage/);
     const h = await createLeadManually(harbor, { fullName: "Task", email: "task@harbor.test" });
     await addTask(harbor, h.inquiry.id, { title: "Call back", dueAt: new Date(), assignedUserId: f.harborEmployee.id });
     const lead = (await getLead(harbor, h.inquiry.id))!;

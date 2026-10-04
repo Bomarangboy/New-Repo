@@ -91,7 +91,7 @@ Nothing here is needed for staging/demo; they always simulate. For production:
    **Verified**. Only after the legal review (D‑18) and your approval set `LIVE_SENDING_ENABLED=true` in the
    production Vercel environment and redeploy.
 
-## 3d. Cal.com for each Package 2 client (no Bluewater account needed)
+## 3d. Cal.com for each Bluewater Engage client (no Bluewater account needed)
 
 Each client uses **their own** Cal.com account (free plan is enough for one person's booking page — re‑check
 webhook availability on [cal.com/pricing](https://cal.com/pricing)). The owner (or you in a support session with

@@ -27,7 +27,7 @@ view‑only unless you choose otherwise, and the client sees it in their own act
    A2P registration is approved and the email domain is verified. Copy the Postmark webhook address shown
    once into Postmark. Until live sending is approved, everything stays simulated.
 8. The owner reviews **Automations**: acknowledgment wording, sending hours and who gets alerts.
-9. Package 2: the owner turns on a **follow‑up sequence** (Automations; a suggested one is provided — review the
+9. Bluewater Engage: the owner turns on a **follow‑up sequence** (Automations; a suggested one is provided — review the
    wording first) and connects **Cal.com** (Connected Accounts → Scheduling; steps in `docs/BOOKING.md`).
    Then the controlled test: a test lead through the form, a test booking through its personal link.
 10. Change status to **Active** when the test passes. Leads that arrived before activation are kept but will
@@ -35,7 +35,7 @@ view‑only unless you choose otherwise, and the client sees it in their own act
 
 ## Leads (what clients see)
 - **Leads** lists every inquiry; search by name, email, phone or service; filter by stage, source or person.
-- Each lead has its stage (New → Contacted → Booked → Won/Lost), who it's assigned to, notes, tasks (Package 2),
+- Each lead has its stage (New → Contacted → Booked → Won/Lost), who it's assigned to, notes, tasks (Bluewater Engage),
   the sale amount once won, permission evidence, and a full history of changes.
 - If the same person asks again, it's a new inquiry linked to the same contact ("repeat inquiry").
 - Owners can **export** all leads to a spreadsheet (recorded in the activity log).
@@ -68,7 +68,7 @@ minute once deployed; older than 5 minutes is flagged), jobs that failed (retry 
 An unknown message *may* have reached the person: check the provider's log (Twilio/Postmark) and then mark it
 delivered or failed. Bluewater never re-sends these automatically, to avoid double-texting someone.
 
-## Follow‑ups and appointments (Package 2, Stage 4)
+## Follow‑ups and appointments (Bluewater Engage, Stage 4)
 - **Follow‑up sequence:** after the first acknowledgment, Bluewater keeps in touch over the following days
   (default: day 1, day 3, day 7) until the person replies, books, opts out or the lead is closed — then it stops
   for good. Each message is checked again just before it goes out. If someone asked by phone to stop, use
@@ -89,7 +89,7 @@ delivered or failed. Bluewater never re-sends these automatically, to avoid doub
   Facebook Page; for Google, press **Set up Google lead‑form webhook** and paste the address and key into the lead form
   (then **Send test data**). New ad leads appear under Leads like any other, labeled with the form's name, and get the
   automatic acknowledgment by email (lead forms don't give permission to text).
-- **Reports (Package 3):** choose which ad accounts to include. Reports shows spend, clicks, the platform's own lead
+- **Reports (Bluewater Insight):** choose which ad accounts to include. Reports shows spend, clicks, the platform's own lead
   counts, the leads Bluewater received from each campaign, what they cost, and what they turned into (booked, won, sales).
   A lead is only credited to a campaign when the platform sent the campaign with it — Bluewater never guesses.
 - **If a connection says "Needs reconnecting"** (Meta access lasts about 60 days), press **Reconnect** and sign in again.
@@ -131,7 +131,7 @@ Point them to `README.md`, `CLAUDE.md` and `docs/`. Remove their access when the
   (never visible to the client). Details in `SUPPORT.md`.
 - **Admin → Service notices**: email owners about an outage or maintenance. You review the exact recipients before
   sending. Update your external status page too.
-- **Weekly summary** (Package 3): owners get last week's numbers every Monday morning (their timezone). They can turn it
+- **Weekly summary** (Bluewater Insight): owners get last week's numbers every Monday morning (their timezone). They can turn it
   off in Settings.
 
 ## Usage & billing (Stage 7)

@@ -32,8 +32,8 @@ read‑only under Settings → Billing; employees can't see billing.
 
 ## Upgrades, downgrades, cancellation, refunds, reactivation
 - **Upgrade**: takes effect immediately; nothing is back‑dated.
-- **Downgrade** below Package 2: running follow‑ups stop for good (not resumed on a later upgrade); appointments and
-  history are kept. Below Package 3: reports and weekly summaries stop; ad lead forms keep working.
+- **Downgrade** below Bluewater Engage: running follow‑ups stop for good (not resumed on a later upgrade); appointments and
+  history are kept. Below Bluewater Insight: reports and weekly summaries stop; ad lead forms keep working.
 - **Cancellation**: scheduled end date → read‑only after it (export window), new leads refused. Record the final invoice.
 - **Refunds**: outside the app (your payment method); void or annotate the invoice.
 - **Reactivation**: returns to Onboarding; old queued messages are never resumed.

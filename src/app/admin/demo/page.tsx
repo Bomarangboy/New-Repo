@@ -4,7 +4,7 @@ import { ActionForm, Field, SubmitButton } from "@/components/forms";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
 import { requirePlatformAdmin } from "@/lib/authz/guard";
 import { env } from "@/lib/env";
-import { PACKAGE_LABELS, PACKAGES } from "@/lib/authz/entitlements";
+import { PACKAGE_NAMES, PACKAGE_LABELS, PACKAGES } from "@/lib/authz/entitlements";
 import { US_TIMEZONES } from "@/lib/timezones";
 import { DEMO_GRACE_DAYS, listProspects } from "@/server/demo/prospects";
 import { createProspectAction, prospectAction } from "../support-actions";
@@ -73,7 +73,7 @@ export default async function DemoPage() {
                           <Op id={c.id} op="advance" label="Run next follow-up now" />
                           <Op id={c.id} op="package" label="Switch package">
                             <label htmlFor={`p-${c.id}`} className="sr-only">Package</label>
-                            <select id={`p-${c.id}`} name="package" className="input w-auto" defaultValue={c.package}>{PACKAGES.map((p) => <option key={p} value={p}>{PACKAGE_LABELS[p].split(" — ")[0]}</option>)}</select>
+                            <select id={`p-${c.id}`} name="package" className="input w-auto" defaultValue={c.package}>{PACKAGES.map((p) => <option key={p} value={p}>{PACKAGE_NAMES[p]}</option>)}</select>
                           </Op>
                         </div>
                       </div>

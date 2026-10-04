@@ -251,8 +251,8 @@ describe("controls", () => {
     await changePackage(adminCtx(admin), other.id, "instant_response", "test");
     expect(await enrollmentOf(id)).toMatchObject({ status: "stopped", stopCode: "package" });
     const p1 = await setup({ pkg: "instant_response" });
-    await expect(createSequence(p1.owner, "Nope")).rejects.toThrow(/Package 2/);
-    await expect(listSequences(p1.owner)).rejects.toThrow(/Package 2/);
+    await expect(createSequence(p1.owner, "Nope")).rejects.toThrow(/Bluewater Engage/);
+    await expect(listSequences(p1.owner)).rejects.toThrow(/Bluewater Engage/);
     const id2 = await submit(p1, textingLead("Tia"));
     expect(await enrollmentOf(id2)).toBeNull();
   });

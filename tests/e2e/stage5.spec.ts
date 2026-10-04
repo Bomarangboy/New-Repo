@@ -42,7 +42,7 @@ test.describe.serial("Stage 5: advertising (simulated)", () => {
     await page.goto("/app/connected-accounts");
     const meta = page.getByRole("region", { name: "Meta (Facebook & Instagram)" });
     await expect(meta.getByText("Connected — simulated")).toBeVisible();
-    await expect(meta.getByText("Ad spend reporting is part of Package 3.", { exact: false })).toBeVisible();
+    await expect(meta.getByText("Ad spend reporting is part of Bluewater Insight.", { exact: false })).toBeVisible();
     await meta.getByRole("button", { name: "Send a simulated lead" }).click();
     await expect(page.getByText(/Simulated lead sent/)).toBeVisible();
     await page.goto("/app/leads");

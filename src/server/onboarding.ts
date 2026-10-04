@@ -65,7 +65,7 @@ function senderStep(senders: { channel: string; status: string }[]): OnboardingS
 
 function followUpStep(included: boolean, seqs: { status: string; autoEnroll: boolean }[]): OnboardingStep {
   const base = { key: "follow_up", title: "Follow-up messages", owner: "you" as const };
-  if (!included) return { ...base, detail: "Included in Package 2", status: "na" };
+  if (!included) return { ...base, detail: "Included in Bluewater Engage", status: "na" };
   if (seqs.some((x) => x.status === "active" && x.autoEnroll)) return { ...base, detail: "A follow-up sequence starts automatically for new website leads", status: "ready" };
   if (seqs.length) return { ...base, detail: "A sequence exists — review it and turn it on (Automations)", status: "attention" };
   return { ...base, detail: "Create the messages new leads receive over the following days (Automations)", status: "pending" };
@@ -73,7 +73,7 @@ function followUpStep(included: boolean, seqs: { status: string; autoEnroll: boo
 
 function bookingStep(included: boolean, b: { bookingUrl: string | null; status: string; lastError: string | null } | null): OnboardingStep {
   const base = { key: "booking", title: "Booking link & reminders", owner: "you" as const };
-  if (!included) return { ...base, detail: "Included in Package 2", status: "na" };
+  if (!included) return { ...base, detail: "Included in Bluewater Engage", status: "na" };
   if (b?.status === "connected") return { ...base, detail: b.bookingUrl ? "Cal.com connected; bookings update leads automatically" : "Cal.com connected — add your booking page address too", status: b.bookingUrl ? "ready" : "attention" };
   if (b?.status === "waiting_for_test") return { ...base, detail: b.lastError ? `Waiting for Cal.com's test message. Last problem: ${b.lastError}` : "Waiting for Cal.com's test message (press Ping test in Cal.com)", status: "attention" };
   return { ...base, detail: b?.bookingUrl ? "Booking page saved — connect automatic updates (Connected Accounts)" : "Add your Cal.com booking page and connect it (Connected Accounts)", status: "pending" };

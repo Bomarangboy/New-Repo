@@ -1,11 +1,15 @@
+import { PACKAGE_NAMES, type PackageTier } from "@/lib/authz/entitlements";
+
+const pkgName = (code?: string) => (code && code in PACKAGE_NAMES ? PACKAGE_NAMES[code as PackageTier] : (code ?? "").replaceAll("_", " "));
+
 /** Plain-language descriptions for activity-log entries shown to clients and administrators. */
 export function describeActivity(action: string, details: Record<string, unknown> = {}): string {
   const d = details as Record<string, string | undefined>;
   switch (action) {
-    case "company.created": return `Workspace created (${d.package?.replaceAll("_", " ") ?? ""})`;
+    case "company.created": return `Workspace created (${pkgName(d.package)})`;
     case "company.settings_updated": return "Company details updated";
     case "company.crm_mode_selected": return `CRM choice: ${d.mode === "built_in" ? "built-in CRM" : "external CRM"}`;
-    case "company.package_changed": return `Package changed from ${d.from?.replaceAll("_", " ")} to ${d.to?.replaceAll("_", " ")}`;
+    case "company.package_changed": return `Package changed from ${pkgName(d.from)} to ${pkgName(d.to)}`;
     case "company.lifecycle_changed": return `Account status changed from ${d.from} to ${d.to}`;
     case "company.reactivated": return "Account reactivated";
     case "company.suspended": return "Account temporarily suspended";

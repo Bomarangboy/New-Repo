@@ -4,7 +4,7 @@ import { ArrowLeft, Eye } from "lucide-react";
 import { ActionForm, Field, SubmitButton } from "@/components/forms";
 import { Badge, Card, LIFECYCLE_TONES, PageHeader } from "@/components/ui";
 import { requirePlatformAdmin } from "@/lib/authz/guard";
-import { PACKAGE_LABELS, PACKAGES } from "@/lib/authz/entitlements";
+import { PACKAGE_LABELS, PACKAGE_NAMES, PACKAGES } from "@/lib/authz/entitlements";
 import { accountPolicy } from "@/lib/authz/account-policy";
 import { formatInZone } from "@/lib/timezones";
 import { canTransition, getCompanyForAdmin, LIFECYCLE, SUPPORT_MAX_MINUTES } from "@/server/companies";
@@ -167,7 +167,7 @@ export default async function CompanyAdminPage({ params, searchParams }: { param
 
         <CompanyOperations ctx={ctx} companyId={c.id} />
         <Card title="Package history">
-          <ul className="space-y-2 text-sm">{packages.map((p) => <li key={p.id}><span className="text-muted">{formatInZone(p.createdAt, tz, { dateStyle: "medium" })}</span> — {p.fromPackage ? `${p.fromPackage.replaceAll("_", " ")} → ` : ""}{p.toPackage.replaceAll("_", " ")}{p.note ? ` (${p.note})` : ""}</li>)}</ul>
+          <ul className="space-y-2 text-sm">{packages.map((p) => <li key={p.id}><span className="text-muted">{formatInZone(p.createdAt, tz, { dateStyle: "medium" })}</span> — {p.fromPackage ? `${PACKAGE_NAMES[p.fromPackage]} → ` : ""}{PACKAGE_NAMES[p.toPackage]}{p.note ? ` (${p.note})` : ""}</li>)}</ul>
         </Card>
         <Card title="Status history">
           <ul className="space-y-2 text-sm">{lifecycle.map((l) => <li key={l.id}><span className="text-muted">{formatInZone(l.createdAt, tz, { dateStyle: "medium" })}</span> — {l.fromStatus ? `${l.fromStatus} → ` : ""}{l.toStatus}{l.reason ? ` (${l.reason})` : ""}</li>)}</ul>

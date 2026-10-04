@@ -121,7 +121,7 @@ export async function handleWeeklySummary(job: JobRow, now = new Date()): Promis
 /** Owner setting: weekly summary on/off (Package 3). */
 export async function setWeeklySummaryEnabled(ctx: CompanyContext, on: boolean) {
   if (!roleCan(ctx.role, "settings.manage") || ctx.policy.login !== "full") throw new UserError("You don't have permission to do that.");
-  if (!hasFeature(ctx.package, "scheduled_summaries")) throw new UserError("Weekly summaries are part of Package 3.");
+  if (!hasFeature(ctx.package, "scheduled_summaries")) throw new UserError("Weekly summaries are part of Bluewater Insight.");
   await withCompanyDb(ctx, async (tx) => {
     await tx.insert(messagingSettings).values({ companyId: ctx.companyId, weeklySummaryEnabled: on })
       .onConflictDoUpdate({ target: messagingSettings.companyId, set: { weeklySummaryEnabled: on, updatedAt: new Date() } });

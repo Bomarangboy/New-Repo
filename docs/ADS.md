@@ -22,7 +22,7 @@ Google lead‑form **webhooks** are the exception: they need no API approval and
 | Sales outcomes | Recorded by your team in Bluewater; never taken from the platforms | same | 3 |
 | Sending conversions back to the platforms | Not built (would need separate approval & consent review) | Not built | — |
 
-A connected account does not imply every function: e.g. Package 1 and 2 connections only receive leads.
+A connected account does not imply every function: e.g. Bluewater Connect and 2 connections only receive leads.
 
 ## Modes (D‑31)
 
@@ -41,7 +41,7 @@ A connected account does not imply every function: e.g. Package 1 and 2 connecti
    `appsecret_proof`. Google access tokens are refreshed automatically; Meta's long‑lived token lasts ~60 days —
    the card warns 14 days before it ends, and an expired token marks the connection **Needs reconnecting**.
 4. Meta: choose which **Pages** send leads (each Page can feed only one Bluewater company — a database rule).
-   Package 3: choose which **ad accounts** are included in reports.
+   Bluewater Insight: choose which **ad accounts** are included in reports.
 5. **Disconnect** revokes access at the platform (best effort), deletes tokens, stops receiving and syncing; leads
    and imported numbers stay.
 
@@ -62,7 +62,7 @@ A connected account does not imply every function: e.g. Package 1 and 2 connecti
 - Account status rules are the same as website forms: Active → automatic messages; Onboarding/Paused → stored,
   not messaged; service ended → not recorded (the platform still keeps the lead).
 
-## Reporting (Package 3)
+## Reporting (Bluewater Insight)
 
 - First import: last 90 days. Then every 6 hours: the last 7 days, **replacing** those days (platforms revise
   recent numbers) — re‑imports never double count. Import history is kept (`ad_sync_runs`).

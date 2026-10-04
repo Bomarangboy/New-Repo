@@ -96,6 +96,7 @@ test.describe.serial("Stage 7: operations", () => {
     await expect(page.getByText("a provider delay this morning")).toBeVisible();
     await expect(page.getByText("Resolved", { exact: true })).toBeVisible();
     await expect(page.locator("body")).not.toContainText("INTERNAL: check Twilio");
+    await expect(page.locator(".badge", { hasText: "Bluewater Engage" }).first()).toBeVisible(); // package name (D-44)
     await page.goto("/app/settings/billing");
     await expect(page.getByRole("heading", { name: "Billing" })).toBeVisible();
     await expect(page.getByText("Not set up yet — Bluewater will confirm your price.")).toBeVisible();

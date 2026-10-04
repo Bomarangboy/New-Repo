@@ -10,7 +10,7 @@ Status key: **Decided** (owner approved) · **Assumed** (reasonable default; rev
 
 | ID | Decision / dependency | Status | Blocks |
 |----|----------------------|--------|--------|
-| D‑01 | Launch scope | **Decided** — pilot Packages 1+2 | — |
+| D‑01 | Launch scope | **Decided** — pilot Bluewater Connect and Engage | — |
 | D‑02 | Stack & hosting | **Decided** — Next.js + Supabase + Vercel | — |
 | D‑03 | Authentication | **Decided** (follows D‑02) — Supabase Auth | Live sign‑in only |
 | D‑04 | Database access & isolation | **Assumed** — Drizzle ORM + Postgres RLS | — |
@@ -45,13 +45,14 @@ Status key: **Decided** (owner approved) · **Assumed** (reasonable default; rev
 | D‑34 | Google lead forms | **Assumed** — via Google's lead-form webhook (no API approval needed) | — |
 | D‑35 | One Facebook Page → one company | **Assumed** — database rule | — |
 | D‑30 | Booking from an unknown person | **Assumed** — recorded as a new lead ("Cal.com booking"), never auto‑messaged except confirmations/reminders | — |
-| D‑36 | Weekly owner summaries (Package 3) | **Assumed** — email Mondays from 8am local; last Mon–Sun; owners only; can be turned off | — |
+| D‑36 | Weekly owner summaries (Bluewater Insight) | **Assumed** — email Mondays from 8am local; last Mon–Sun; owners only; can be turned off | — |
 | D‑37 | Usage limits & billing | **Assumed** — manual invoices; limits alert or pause *automatic texts* only; never auto‑suspend for payment | Pricing (owner) |
 | D‑38 | Retention & deletion | **Assumed** — keep while client; delete only archived companies on request; keep billing, history, audit, opt‑outs | Legal review (D‑18) |
 | D‑39 | Late follow‑ups after an outage | **Assumed** — a step > 24 h late is paused for a person, never sent | — |
 | D‑40 | Work priorities under load | **Assumed** — new‑lead work first, reports last | — |
 | D‑41 | Alerts | **Assumed** — grouped, email on open/recover only; public `/api/health` for the external monitor | Monitor account (owner) |
 | D‑42 | Sales‑demo prospect workspaces | **Assumed** — demo site only; 1–30 days; deleted 7 days after expiry | Demo deployment |
+| D‑44 | Package names | **Decided** — Bluewater Connect (1), Bluewater Engage (2), Bluewater Insight (3) | — |
 | D‑43 | Support requests & notices | **Assumed** — in‑app tickets with BW‑ references; notices need recipient‑count confirmation | — |
 
 ---
@@ -59,8 +60,8 @@ Status key: **Decided** (owner approved) · **Assumed** (reasonable default; rev
 ### D‑01 Launch scope — Decided
 - **Why it matters:** Sets what can be sold first and which outside approvals are on the critical path.
 - **Chosen:** Pilot Packages 1 (Instant Response) and 2 (Follow‑Up & Booking) with 1–3 pilot clients.
-  Package 3 follows when Meta App Review/Business Verification and Google Ads API access are approved.
-- **Alternatives:** Package 1 only (fastest); all three (waits on Meta/Google approvals, weeks, outside our control).
+  Bluewater Insight follows when Meta App Review/Business Verification and Google Ads API access are approved.
+- **Alternatives:** Bluewater Connect only (fastest); all three (waits on Meta/Google approvals, weeks, outside our control).
 - **Blocks:** Nothing in development.
 
 ### D‑02 Stack & hosting — Decided (owner chose this over the Render recommendation)
@@ -298,7 +299,7 @@ Each extra Supabase project adds compute cost (one Micro is covered by the inclu
   between companies is an administrator task (turn it off in one, then on in the other).
 
 ### D‑36 Weekly owner summaries — Assumed (Stage 7)
-- Package 3 owners get one email per week: last Monday–Sunday in the company's timezone, sent from Monday 8:00 local.
+- Bluewater Insight owners get one email per week: last Monday–Sunday in the company's timezone, sent from Monday 8:00 local.
   Same definitions as Overview/Reports (METRICS.md); simulated numbers labeled; unknowns never shown as zero. One per
   owner per week (database key), even if the job runs twice. Owners can turn it off in Settings. Employees don't get it.
 
@@ -338,6 +339,12 @@ Each extra Supabase project adds compute cost (one Micro is covered by the inclu
 - In‑app support requests with references (BW‑1001…), company‑scoped, internal notes hidden by the database; all
   administrators emailed. Service notices go to company owners only after the administrator reviews the exact list and
   confirms the count. The public status page is a separate free service (MONITORING.md).
+
+### D‑44 Package names — Decided by the owner
+- Package 1 is **Bluewater Connect** (instant response), Package 2 is **Bluewater Engage** (follow‑up & booking), Package 3
+  is **Bluewater Insight** (performance reporting). Still cumulative: Engage includes Connect; Insight includes both.
+- Only the names people see changed. Internal codes (`instant_response`, `follow_up_booking`, `performance_reporting`) stay,
+  so permissions, history and billing records are unaffected. SPECIFICATION.md keeps its original "Package 1/2/3" wording.
 
 ### D‑15 measured (Stage 7)
 - Load test and restore drill results are in CAPACITY.md and RECOVERY.md (local measurements; staging run pending).

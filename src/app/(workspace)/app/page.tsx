@@ -262,7 +262,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
 
       <p className="mt-6 text-xs text-muted">
         Figures calculated {formatInZone(m.computedAt, ctx.timezone)} from your records · days are counted in {timezoneLabel(ctx.timezone)} time · see “How numbers are calculated” in Help.
-        {!hasFeature(ctx.package, "ad_reporting") && " Advertising spend is part of Package 3."}
+        {!hasFeature(ctx.package, "ad_reporting") && " Advertising spend is part of Bluewater Insight."}
       </p>
     </>
   );

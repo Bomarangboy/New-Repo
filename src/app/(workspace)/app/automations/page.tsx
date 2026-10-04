@@ -65,7 +65,7 @@ export default async function AutomationsPage() {
 
           <Card title="Follow-up sequences">
             {!sequences ? (
-              <div className="flex items-start gap-3 text-sm text-muted"><Repeat className="mt-0.5 size-5 text-brand-500" /><p>Multi-day follow-up by text and email is part of Package 2.</p></div>
+              <div className="flex items-start gap-3 text-sm text-muted"><Repeat className="mt-0.5 size-5 text-brand-500" /><p>Multi-day follow-up by text and email is part of Bluewater Engage.</p></div>
             ) : (
               <>
                 <p className="-mt-2 mb-4 text-sm text-muted">Messages over the following days for leads who haven&apos;t replied. A sequence stops by itself when the person replies, books, opts out or the lead is closed.</p>

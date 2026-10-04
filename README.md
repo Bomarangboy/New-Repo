@@ -7,10 +7,10 @@ administrators manage all companies from a separate area.
 > **Status:** Stages 1–5 and 7 complete (Stage 6, external CRM sync, waits for your choice of CRM) — accounts, security, company isolation, permissions, administrator
 > company management, built-in CRM, website form capture, CSV import/export, a dashboard from real data,
 > **messaging** (automatic acknowledgments, two-way inbox, opt-outs, team alerts, background jobs) and
-> **Package 2**: multi-day follow-up sequences, Cal.com booking, appointments, confirmations and reminders.
+> **Bluewater Engage**: multi-day follow-up sequences, Cal.com booking, appointments, confirmations and reminders.
 > All messaging is **simulated** (clearly labeled) until real Twilio/Postmark accounts exist and you approve
 > go-live; Cal.com awaits a real account. **Advertising** (Stage 5): Facebook/Instagram and Google lead forms and
-> Package 3 ad reporting — simulated until Meta/Google approve Bluewater's apps. **Operations** (Stage 7): health &
+> Bluewater Insight ad reporting — simulated until Meta/Google approve Bluewater's apps. **Operations** (Stage 7): health &
 > alerts, backups with a tested restore drill, load test, support requests, service notices, usage & billing records,
 > weekly summaries, data retention/deletion and sales‑demo workspaces. Nothing is deployed yet — see
 > [`docs/LAUNCH_CHECKLIST.md`](docs/LAUNCH_CHECKLIST.md). See [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md).
@@ -64,9 +64,9 @@ local PostgreSQL whose superuser is `postgres` / password `postgres` (otherwise 
 
 Sample sign‑ins (password `bluewater-dev-password`; Harbor and Bayside come with ~130 fictional leads each):
 - `admin@bluewater.test`, `ops@bluewater.test` — Bluewater administrators (you'll set up two‑step verification on first sign‑in)
-- `jordan@harbor.test` — owner, Harbor Home Services (Package 2); `alex@harbor.test` — employee
-- `taylor@summit.test` — owner, Summit Roofing (Package 1)
-- `morgan@bayside.test` — owner, Bayside Dental (Package 3)
+- `jordan@harbor.test` — owner, Harbor Home Services (Bluewater Engage); `alex@harbor.test` — employee
+- `taylor@summit.test` — owner, Summit Roofing (Bluewater Connect)
+- `morgan@bayside.test` — owner, Bayside Dental (Bluewater Insight)
 
 Emails (invitations, password resets, team alerts) are **not sent** locally — read them at
 <http://localhost:3000/dev/mailbox>. Client texts/emails use the simulated transport and appear in

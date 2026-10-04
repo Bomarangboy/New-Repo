@@ -176,7 +176,7 @@ export default async function ConnectedAccountsPage({ searchParams }: { searchPa
         </Card>
         {!hasFeature(ctx.package, "booking") && (
           <Card title="Scheduling">
-            <div className="flex items-start gap-3"><CalendarDays className="mt-0.5 size-5 text-slate-400" /><p className="text-sm text-muted">Booking links, Cal.com connection and appointment reminders are part of Package 2.</p></div>
+            <div className="flex items-start gap-3"><CalendarDays className="mt-0.5 size-5 text-slate-400" /><p className="text-sm text-muted">Booking links, Cal.com connection and appointment reminders are part of Bluewater Engage.</p></div>
           </Card>
         )}
       </div>

@@ -6,7 +6,7 @@
  */
 import { writeFileSync } from "node:fs";
 import { ACTIONS, ROLE_PERMISSIONS, type WorkspaceRole } from "../src/lib/authz/permissions";
-import { FEATURES, PACKAGES, PACKAGE_LABELS, hasFeature, type Feature } from "../src/lib/authz/entitlements";
+import { FEATURES, PACKAGES, PACKAGE_NAMES, hasFeature, type Feature } from "../src/lib/authz/entitlements";
 import { accountPolicy, type LifecycleStatus } from "../src/lib/authz/account-policy";
 
 export function renderPermissionsDoc(): string {
@@ -26,7 +26,7 @@ export function renderPermissionsDoc(): string {
     "Administrator actions (company creation, packages, status, owner invitations, support grants) live in the separate",
     "`/admin` area and require two‑step verification.", "");
   lines.push("## 2. Package entitlements (cumulative)", "");
-  lines.push(`| Feature | ${PACKAGES.map((p) => PACKAGE_LABELS[p].split(" — ")[0]).join(" | ")} |`, `|---|${PACKAGES.map(() => ":-:").join("|")}|`);
+  lines.push(`| Feature | ${PACKAGES.map((p) => PACKAGE_NAMES[p]).join(" | ")} |`, `|---|${PACKAGES.map(() => ":-:").join("|")}|`);
   for (const f of Object.keys(FEATURES) as Feature[]) lines.push(`| \`${f}\` | ${PACKAGES.map((p) => y(hasFeature(p, f))).join(" | ")} |`);
   lines.push("", "Receiving leads from advertising lead forms (`ad_lead_forms`) is separate from advertising *performance reporting* (`ad_reporting`).", "");
   lines.push("## 3. Account‑status behavior", "");

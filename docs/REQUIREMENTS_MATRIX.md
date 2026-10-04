@@ -48,9 +48,9 @@ Status: ✅ Implemented & verified · 🟡 Implemented, awaiting live verificati
 | 10 | Connected Accounts: OAuth (no passwords), account/Page selection, encrypted tokens, renewal, disconnect, last sync, errors & reconnect | ✅ 🎭 / 🟡 | `server/ads/connections.ts`, `config.ts`, ads-card | ads.test.ts (state forgery, disconnect, isolation) | ⛔ Meta/Google approvals (ADS.md) |
 | 10 | Pagination, rate limits, historical + incremental import | ✅ | `clients/*`, `sync.ts` | ads-rules unit (faked HTTP), ads.test.ts | |
 | 10 | Support matrix; connected ≠ every function; blocked shown as blocked | ✅ | ADS.md, Connected Accounts copy | stage5 browser | |
-| 11 | Dashboards & reporting definitions (P1/P2) | ✅ | `server/metrics.ts`, METRICS.md, Help page | reconciliation tests, DST unit tests | |
-| 11 | Package 3: spend/performance, campaigns, conversion rates, recorded vs attributed sales, freshness, currencies | ✅ 🎭 | `server/ads/reports.ts`, Reports page, Overview card | ads.test.ts (totals reconcile, crediting rules) | |
-| 11 | Scheduled owner summaries (Package 3) | ✅ 🎭 | `server/reports/weekly-summary.ts`, Settings toggle | weekly-summary unit (DST), operations.test.ts (once per owner) | D‑36; live email needs Postmark |
+| 11 | Dashboards & reporting definitions (Connect/Engage) | ✅ | `server/metrics.ts`, METRICS.md, Help page | reconciliation tests, DST unit tests | |
+| 11 | Bluewater Insight: spend/performance, campaigns, conversion rates, recorded vs attributed sales, freshness, currencies | ✅ 🎭 | `server/ads/reports.ts`, Reports page, Overview card | ads.test.ts (totals reconcile, crediting rules) | |
+| 11 | Scheduled owner summaries (Bluewater Insight) | ✅ 🎭 | `server/reports/weekly-summary.ts`, Settings toggle | weekly-summary unit (DST), operations.test.ts (once per owner) | D‑36; live email needs Postmark |
 | 12 | All Customers directory + filters | ✅ | `/admin` | browser test | |
 | 12 | Separate lifecycle / billing / suspension | ✅ | schema + `account-policy.ts` | unit + integration | |
 | 12 | Package & lifecycle history, reactivation, churn reason | ✅ | `server/companies.ts` | integration | |

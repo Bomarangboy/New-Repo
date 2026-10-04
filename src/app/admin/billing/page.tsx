@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ActionForm, Field, SubmitButton } from "@/components/forms";
 import { Badge, Card, LIFECYCLE_TONES, PageHeader } from "@/components/ui";
 import { requirePlatformAdmin } from "@/lib/authz/guard";
-import { PACKAGE_LABELS, type PackageTier } from "@/lib/authz/entitlements";
+import { PACKAGE_NAMES, type PackageTier } from "@/lib/authz/entitlements";
 import type { LifecycleStatus } from "@/lib/authz/account-policy";
 import { lifecycleReport, usageReport } from "@/server/billing";
 import { saveUnitPricesAction } from "../actions";
@@ -59,7 +59,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
                   <tr key={r.id} className={r.kind !== "customer" ? "text-muted" : ""}>
                     <td className="px-2 py-2.5"><Link href={`/admin/companies/${r.id}`} className="font-medium hover:text-brand-600">{r.name}</Link>{r.kind !== "customer" && <span className="ml-1"><Badge>{r.kind.replace("_", " ")}</Badge></span>}
                       <span className="ml-1"><Badge tone={LIFECYCLE_TONES[r.lifecycle_status as LifecycleStatus]}>{r.lifecycle_status}</Badge></span></td>
-                    <td className="px-2 py-2.5">{PACKAGE_LABELS[r.package as PackageTier].split(" — ")[1]}</td>
+                    <td className="px-2 py-2.5">{PACKAGE_NAMES[r.package as PackageTier]}</td>
                     <td className="px-2 py-2.5 text-right">{r.leads}</td>
                     <td className="px-2 py-2.5 text-right">{r.sms_live}{r.sms_sim ? <span className="block text-[11px] text-muted">+{r.sms_sim} simulated</span> : null}
                       {r.sms_monthly_limit != null && <span className={`block text-[11px] ${over ? "text-red-700" : "text-muted"}`}>limit {r.sms_monthly_limit} ({r.limit_mode === "pause_automatic" ? "pauses auto texts" : "alert only"})</span>}</td>

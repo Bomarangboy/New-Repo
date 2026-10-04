@@ -129,7 +129,7 @@ export async function completeConnect(ctx: CompanyContext, platform: AdPlatform,
 export async function selectAdAccounts(ctx: CompanyContext, platformRaw: string, accountIds: string[], requestId?: string) {
   need(ctx, "integration.manage");
   const platform = asPlatform(platformRaw);
-  if (!hasFeature(ctx.package, "ad_reporting")) throw new UserError("Ad reporting is part of Package 3.");
+  if (!hasFeature(ctx.package, "ad_reporting")) throw new UserError("Ad reporting is part of Bluewater Insight.");
   const ids = accountIds.filter(isId);
   return withCompanyDb(ctx, async (tx) => {
     const [conn] = await tx.select().from(adConnections).where(and(eq(adConnections.platform, platform), sql`${adConnections.status} <> 'disconnected'`));

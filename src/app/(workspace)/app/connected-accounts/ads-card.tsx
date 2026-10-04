@@ -36,7 +36,7 @@ export function AdPlatformSection({ p, tz, canManage }: { p: Platform; tz: strin
       </div>
       <p className="mb-3 text-sm text-muted">
         {p.platform === "meta" ? "Facebook and Instagram lead-form leads arrive in Bluewater automatically." : "Google lead-form leads arrive in Bluewater automatically."}
-        {p.reportingIncluded ? " Ad spend, clicks and results appear under Reports." : " Ad spend reporting is part of Package 3."}
+        {p.reportingIncluded ? " Ad spend, clicks and results appear under Reports." : " Ad spend reporting is part of Bluewater Insight."}
       </p>
 
       {!c && p.mode === "unavailable" && <p className="mb-3 rounded-xl bg-canvas px-3 py-2 text-xs text-muted">{WAITING[p.platform]}</p>}

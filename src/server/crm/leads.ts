@@ -235,7 +235,7 @@ const taskSchema = z.object({ title: z.string().trim().min(2, "Describe the task
 
 export async function addTask(ctx: CompanyContext, inquiryId: string, input: z.input<typeof taskSchema>) {
   need(ctx, "lead.edit");
-  if (!hasFeature(ctx.package, "tasks")) throw new UserError("Follow-up tasks are part of Package 2.");
+  if (!hasFeature(ctx.package, "tasks")) throw new UserError("Follow-up tasks are part of Bluewater Engage.");
   const t = taskSchema.parse(input);
   return withCompanyDb(ctx, async (tx) => {
     const [inq] = await tx.select({ id: inquiries.id }).from(inquiries).where(eq(inquiries.id, inquiryId));
@@ -252,7 +252,7 @@ export async function addTask(ctx: CompanyContext, inquiryId: string, input: z.i
 
 export async function setTaskDone(ctx: CompanyContext, taskId: string, done: boolean) {
   need(ctx, "lead.edit");
-  if (!hasFeature(ctx.package, "tasks")) throw new UserError("Follow-up tasks are part of Package 2.");
+  if (!hasFeature(ctx.package, "tasks")) throw new UserError("Follow-up tasks are part of Bluewater Engage.");
   return withCompanyDb(ctx, async (tx) => {
     const [t] = await tx.update(tasks).set({ completedAt: done ? new Date() : null }).where(eq(tasks.id, taskId)).returning();
     if (!t) throw new UserError("Task not found.");
@@ -274,7 +274,7 @@ export async function openTasksForUser(ctx: CompanyContext, limit = 10) {
 
 export async function pipelineBoard(ctx: CompanyContext, perStage = 30) {
   need(ctx, "lead.view");
-  if (!hasFeature(ctx.package, "pipeline_board")) throw new UserError("The pipeline board is part of Package 2.");
+  if (!hasFeature(ctx.package, "pipeline_board")) throw new UserError("The pipeline board is part of Bluewater Engage.");
   return withCompanyDb(ctx, async (tx) => {
     const out = {} as Record<Stage, { total: number; items: { id: string; name: string; service: string | null; submittedAt: Date; saleValueCents: number | null }[] }>;
     for (const s of STAGES) {

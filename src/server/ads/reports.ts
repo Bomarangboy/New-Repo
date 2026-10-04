@@ -26,7 +26,7 @@ export interface CampaignRow {
 
 export async function adReport(ctx: CompanyContext, days: number) {
   if (!roleCan(ctx.role, "report.view")) throw new UserError("You don't have permission to do that.");
-  if (!hasFeature(ctx.package, "ad_reporting")) throw new UserError("Advertising reports are part of Package 3.");
+  if (!hasFeature(ctx.package, "ad_reporting")) throw new UserError("Advertising reports are part of Bluewater Insight.");
   const p = periodFor(days, ctx.timezone);
   const fromDay = p.dayKeys[0]!, toDay = p.dayKeys[p.dayKeys.length - 1]!;
   return withCompanyDb(ctx, async (tx) => {

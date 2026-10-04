@@ -3,15 +3,29 @@
  *   instant_response (1) ⊂ follow_up_booking (2) ⊂ performance_reporting (3)
  *
  * Note the deliberate split: receiving advertising lead-form leads ("ad_lead_forms")
- * is available to every package, while advertising PERFORMANCE reporting is Package 3.
+ * is available to every package, while advertising PERFORMANCE reporting is Bluewater Insight (3).
  */
 export const PACKAGES = ["instant_response", "follow_up_booking", "performance_reporting"] as const;
 export type PackageTier = (typeof PACKAGES)[number];
 
+/** Customer-facing package names (owner decision D-44). Internal codes above never change. */
+export const PACKAGE_NAMES: Record<PackageTier, string> = {
+  instant_response: "Bluewater Connect",
+  follow_up_booking: "Bluewater Engage",
+  performance_reporting: "Bluewater Insight",
+};
+
+/** What each package adds, for menus where the name alone isn't enough. */
+export const PACKAGE_TAGLINES: Record<PackageTier, string> = {
+  instant_response: "Instant response",
+  follow_up_booking: "Follow-up & booking",
+  performance_reporting: "Performance reporting",
+};
+
 export const PACKAGE_LABELS: Record<PackageTier, string> = {
-  instant_response: "Package 1 — Instant Response",
-  follow_up_booking: "Package 2 — Follow-Up & Booking",
-  performance_reporting: "Package 3 — Performance Reporting",
+  instant_response: `${PACKAGE_NAMES.instant_response} — ${PACKAGE_TAGLINES.instant_response}`,
+  follow_up_booking: `${PACKAGE_NAMES.follow_up_booking} — ${PACKAGE_TAGLINES.follow_up_booking}`,
+  performance_reporting: `${PACKAGE_NAMES.performance_reporting} — ${PACKAGE_TAGLINES.performance_reporting}`,
 };
 
 export const FEATURES = {

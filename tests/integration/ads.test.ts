@@ -140,8 +140,8 @@ describe("connecting (simulated in this environment)", () => {
     await beginConnect(p1.owner, "meta");
     const ov = await adsOverview(p1.owner);
     expect(ov[0]!.reportingIncluded).toBe(false);
-    await expect(selectAdAccounts(p1.owner, "meta", [])).rejects.toThrow(/Package 3/);
-    await expect(adReport(p1.owner, 30)).rejects.toThrow(/Package 3/);
+    await expect(selectAdAccounts(p1.owner, "meta", [])).rejects.toThrow(/Bluewater Insight/);
+    await expect(adReport(p1.owner, 30)).rejects.toThrow(/Bluewater Insight/);
     await runAdJobs(p1.id);
     expect((await sum(p1.id)).n).toBe(0);
     await expect(beginConnect(p1.employee, "meta")).rejects.toThrow(/permission/);

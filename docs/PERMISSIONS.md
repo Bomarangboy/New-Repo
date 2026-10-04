@@ -53,7 +53,7 @@ Administrator actions (company creation, packages, status, owner invitations, su
 
 ## 2. Package entitlements (cumulative)
 
-| Feature | Package 1 | Package 2 | Package 3 |
+| Feature | Bluewater Connect | Bluewater Engage | Bluewater Insight |
 |---|:-:|:-:|:-:|
 | `leads` | ✅ | ✅ | ✅ |
 | `lead_sources` | ✅ | ✅ | ✅ |

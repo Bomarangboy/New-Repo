@@ -65,7 +65,7 @@ export default async function HelpPage() {
           <div><dt className="font-medium">Recorded sales</dt><dd className="text-muted">Sale values you entered on leads marked Won during the period. If a won lead has no value, we tell you the total is incomplete. This is not the same as revenue caused by advertising.</dd></div>
           <div><dt className="font-medium">“No data yet”</dt><dd className="text-muted">We show this — never a zero — when a number can&apos;t be calculated yet, for example before automatic replies are set up.</dd></div>
           <div><dt className="font-medium">Ad tracking</dt><dd className="text-muted">A lead shows campaign details only when they arrived with the inquiry. Many inquiries can&apos;t be linked to a specific ad; that&apos;s normal.</dd></div>
-          <div><dt className="font-medium">Weekly summary</dt><dd className="text-muted">Package 3 owners get last week&apos;s numbers (Monday to Sunday, your timezone) every Monday morning, using exactly these definitions.</dd></div>
+          <div><dt className="font-medium">Weekly summary</dt><dd className="text-muted">Bluewater Insight owners get last week&apos;s numbers (Monday to Sunday, your timezone) every Monday morning, using exactly these definitions.</dd></div>
         </dl>
       </Card>
     </>

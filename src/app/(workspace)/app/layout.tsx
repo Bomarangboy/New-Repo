@@ -5,7 +5,7 @@ import { SimulationBanner } from "@/components/simulation-banner";
 import { Badge } from "@/components/ui";
 import { pageContext, requireSession } from "@/lib/authz/guard";
 import { listUserCompanies } from "@/lib/authz/resolve";
-import { PACKAGE_LABELS } from "@/lib/authz/entitlements";
+import { PACKAGE_NAMES } from "@/lib/authz/entitlements";
 import { visibleNav } from "@/lib/nav";
 import { switchCompanyAction } from "./actions";
 import { roleCan } from "@/lib/authz/permissions";
@@ -66,7 +66,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
       sidebarTop={switcher}
       topbar={
         <>
-          <span className="hidden sm:inline"><Badge tone="blue">{PACKAGE_LABELS[ctx.package].split(" — ")[1]}</Badge></span>
+          <span className="hidden sm:inline"><Badge tone="blue">{PACKAGE_NAMES[ctx.package]}</Badge></span>
           <UserMenu name={user.fullName} email={user.email} isAdmin={user.isPlatformAdmin} />
         </>
       }

@@ -36,11 +36,11 @@ against a real database in this repository — **not** a live provider.
 ## 3. Provider approvals (outside parties — timelines are theirs)
 | Provider | Needed for | Status |
 |---|---|---|
-| Twilio A2P 10DLC brand + campaign **per client** | Real texts (P1–P2) | ⛔ Not started (needs each client's business details; typically days–weeks) |
+| Twilio A2P 10DLC brand + campaign **per client** | Real texts (Connect and Engage) | ⛔ Not started (needs each client's business details; typically days–weeks) |
 | Postmark account review | Real emails | ⛔ Not started (usually quick once the domain is verified) |
-| Cal.com | Booking (P2) | No approval — each client uses their own account; live webhook check pending |
+| Cal.com | Booking (Engage) | No approval — each client uses their own account; live webhook check pending |
 | Meta Business verification + App Review | Facebook/Instagram lead forms & ad reporting | ⛔ Not started (weeks) |
-| Google Ads developer token + OAuth verification | Google ad reporting (P3) | ⛔ Not started (weeks) |
+| Google Ads developer token + OAuth verification | Google ad reporting (Insight) | ⛔ Not started (weeks) |
 | Google lead‑form webhook | Google lead forms | No approval — only a deployed address |
 
 ## 4. Business and legal decisions (owner)
@@ -53,16 +53,16 @@ against a real database in this repository — **not** a live provider.
 ## 5. What can actually be sold now
 | Package | Can sell for a pilot? | Condition |
 |---|---|---|
-| **Package 1 — Instant Response** | **Yes, after deployment** | Email acknowledgments work as soon as Postmark is verified; **texts** only after each client's A2P approval and your go‑live (legal review). Website forms, Google lead forms, manual/CSV leads, built‑in CRM, inbox. Facebook lead forms need Meta App Review. |
-| **Package 2 — Follow‑Up & Booking** | **Yes, after deployment** | Same messaging conditions as Package 1; Cal.com per client (their own account). |
-| **Package 3 — Performance Reporting** | **Not yet as a live product** | Ad spend reporting needs Meta and/or Google API approvals. Can be shown in the demo (clearly labeled sample numbers). |
+| **Bluewater Connect (instant response)** | **Yes, after deployment** | Email acknowledgments work as soon as Postmark is verified; **texts** only after each client's A2P approval and your go‑live (legal review). Website forms, Google lead forms, manual/CSV leads, built‑in CRM, inbox. Facebook lead forms need Meta App Review. |
+| **Bluewater Engage (follow-up & booking)** | **Yes, after deployment** | Same messaging conditions as Bluewater Connect; Cal.com per client (their own account). |
+| **Bluewater Insight (performance reporting)** | **Not yet as a live product** | Ad spend reporting needs Meta and/or Google API approvals. Can be shown in the demo (clearly labeled sample numbers). |
 
 ## 6. Pilot recommendation
-Start with **3–5 clients on Packages 1–2**, built‑in CRM, website forms (+ Google lead forms):
+Start with **3–5 clients on Bluewater Connect and Engage**, built‑in CRM, website forms (+ Google lead forms):
 1. Weeks 1–2: deploy staging + production, run the staging drills, onboard clients with **email acknowledgments** while
    their Twilio A2P registrations are reviewed; legal review in parallel.
 2. When A2P is approved and you've confirmed the legal review: switch on texting per client (sender verified on the
    company page), watch Health daily for the first week.
 3. Measured local capacity is far above this pilot (5 leads/s sustained vs ~500/day target), so capacity is not the
    limit — provider approvals and your support time are. Grow to 10 clients after a month without open incidents.
-4. Package 3 when Meta/Google approvals arrive; Stage 6 when a pilot client needs CRM sync.
+4. Bluewater Insight when Meta/Google approvals arrive; Stage 6 when a pilot client needs CRM sync.

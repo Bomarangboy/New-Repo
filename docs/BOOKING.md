@@ -1,4 +1,4 @@
-# Booking & appointments (Stage 4, Package 2+)
+# Booking & appointments (Stage 4, Bluewater Engage or Insight)
 
 Code: `src/server/booking/*`, `src/app/api/webhooks/calcom/[key]`. Tests: `tests/integration/booking.test.ts`,
 `tests/unit/booking-rules.test.ts`, `tests/e2e/stage4.spec.ts`. Decisions: D‑10, D‑27, D‑29, D‑30.

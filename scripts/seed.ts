@@ -63,7 +63,7 @@ async function main() {
   }
   console.log(`Seeded. Password for every sample account: ${DEV_PASSWORD}`);
   console.log("Administrator: admin@bluewater.test (you'll be asked to set up two-step verification).");
-  console.log("Owners: jordan@harbor.test (Package 2), taylor@summit.test (Package 1), morgan@bayside.test (Package 3). Employee: alex@harbor.test");
+  console.log("Owners: jordan@harbor.test (Bluewater Engage), taylor@summit.test (Bluewater Connect), morgan@bayside.test (Bluewater Insight). Employee: alex@harbor.test");
 }
 
 async function ensureIdentity(email: string): Promise<string> {

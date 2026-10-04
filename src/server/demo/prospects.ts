@@ -182,7 +182,7 @@ export async function presentationControl(ctx: PlatformContext, id: string, acti
     await tx.update(jobs).set({ runAt: new Date() }).where(eq(jobs.id, j.id));
     return true;
   });
-  if (!moved) throw new UserError("No follow-up is waiting. Simulate a lead first (with Package 2 or 3).");
+  if (!moved) throw new UserError("No follow-up is waiting. Simulate a lead first (with Bluewater Engage or Insight).");
   return "The next follow-up step runs now instead of later (simulated). Refresh the lead in a few seconds.";
 }
 

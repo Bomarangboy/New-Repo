@@ -31,7 +31,7 @@ prospect workspaces exist.
   everywhere (tested); it is not a setting someone can flip in the interface.
 
 ## Follow‑ups and bookings (Stage 4)
-- Package 2+ sample companies have a "New lead follow‑up" sequence (on, automatic) and follow‑ups in every state:
+- Bluewater Engage or Insight sample companies have a "New lead follow‑up" sequence (on, automatic) and follow‑ups in every state:
   running, paused, finished, and stopped because the person replied, booked or the lead closed.
 - Booked and some won leads have **simulated** appointments (badge "Simulated"); upcoming ones have reminders
   queued, which go through the simulated transport.
@@ -42,7 +42,7 @@ prospect workspaces exist.
 ## Advertising (Stage 5)
 - Every sample company has a simulated Facebook Page receiving lead‑form leads; **Send a simulated lead** shows a lead
   arriving (labeled "(simulated)") and being acknowledged.
-- The Package 3 sample company (Bayside Dental) has simulated Meta and Google Ads accounts with 90 days of sample
+- The Bluewater Insight sample company (Bayside Dental) has simulated Meta and Google Ads accounts with 90 days of sample
   numbers and sample leads linked to sample campaigns, so Reports is fully populated — with a "Sample numbers" banner.
 - The server forces simulated ad platforms in the demo; `ADS_LIVE_ENABLED` is refused there.
 
@@ -75,10 +75,10 @@ owner in a second browser window (or share your screen from the admin window plu
    evidence, the acknowledgment.
 3. **Two‑way conversation (2 min).** *Simulate a reply*. **Conversations** shows it waiting; answer it from the
    inbox. Mention STOP handling and quiet hours.
-4. **Follow‑up & booking — Package 2 (4 min).** On the lead, show the running follow‑up. *Run next follow‑up now*,
+4. **Follow‑up & booking — Bluewater Engage (4 min).** On the lead, show the running follow‑up. *Run next follow‑up now*,
    refresh: the step was sent. *Simulate a booking*: the lead moves to Booked, follow‑up stops, confirmation and
    reminder are scheduled. Open **Appointments**.
-5. **Reporting — Package 3 (3 min).** *Switch package* to Package 3. **Reports**: ad spend (sample numbers),
+5. **Reporting — Bluewater Insight (3 min).** *Switch package* to Bluewater Insight. **Reports**: ad spend (sample numbers),
    leads by campaign, cost per lead; explain “campaign unknown” honestly. Mention the Monday summary email.
 6. **Close (2 min).** Settings → team, Help & Support requests, emergency pause. Agree next steps; *Extend* if
    they want to explore on their own.

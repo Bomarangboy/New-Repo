@@ -25,7 +25,7 @@ export async function loadBookingSettings(tx: Tx, companyId: string): Promise<Bo
 
 function need(ctx: CompanyContext, action: Action) {
   if (!roleCan(ctx.role, action)) throw new UserError("You don't have permission to do that.");
-  if (!hasFeature(ctx.package, "booking")) throw new UserError("Booking is part of Package 2. Contact Bluewater to upgrade.");
+  if (!hasFeature(ctx.package, "booking")) throw new UserError("Booking is part of Bluewater Engage. Contact Bluewater to upgrade.");
   if (!action.endsWith(".view") && ctx.policy.login !== "full") throw new UserError("This account is read-only right now, so changes can't be saved.");
 }
 const actorType = (ctx: CompanyContext) => (ctx.supportGrantId ? "support" : "user") as "support" | "user";

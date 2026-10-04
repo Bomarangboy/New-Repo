@@ -16,7 +16,7 @@ import { cancelQueuedStepJobs, stopEnrollments, STOP_LABELS, type StopCode } fro
 /** Server-side checks for every sequence action (the page guards are only a convenience). */
 function need(ctx: CompanyContext, action: Action) {
   if (!roleCan(ctx.role, action)) throw new UserError("You don't have permission to do that.");
-  if (!hasFeature(ctx.package, "sequences")) throw new UserError("Follow-up sequences are part of Package 2. Contact Bluewater to upgrade.");
+  if (!hasFeature(ctx.package, "sequences")) throw new UserError("Follow-up sequences are part of Bluewater Engage. Contact Bluewater to upgrade.");
   if (!action.endsWith(".view") && ctx.policy.login !== "full") throw new UserError("This account is read-only right now, so changes can't be saved.");
 }
 const isId = (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);

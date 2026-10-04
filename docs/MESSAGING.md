@@ -35,7 +35,7 @@ database transaction** as the lead. Just before sending, the job re‑checks:
 Each inquiry can produce **at most one** acknowledgment (unique key in the database, proven with a
 concurrent‑worker test). Templates are versioned; each message records which version it used.
 
-## Follow‑up sequences (Package 2+, D‑26, D‑28)
+## Follow‑up sequences (Bluewater Engage or Insight, D‑26, D‑28)
 
 A sequence is up to 8 steps, each with a wait (from the start, then from the previous step; at least 1 hour),
 a channel (*text if permitted, otherwise email* · *text only* · *email only*) and wording checked by the same
