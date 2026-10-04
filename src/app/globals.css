@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+/* Bluewater Collective brand tokens (sampled from the approved wordmark). */
+@theme {
+  --font-sans: "Figtree Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --color-navy-950: #0a1a2e;
+  --color-navy-900: #0f243d; /* wordmark navy */
+  --color-navy-800: #163152;
+  --color-navy-700: #1d3f69;
+  --color-navy-600: #2a5287;
+
+  --color-brand-50: #eaf3ff;
+  --color-brand-100: #d4e7ff;
+  --color-brand-200: #a9cfff;
+  --color-brand-500: #0575fe; /* wordmark vivid blue */
+  --color-brand-600: #0062dc;
+  --color-brand-700: #004fb3;
+
+  --color-canvas: #f4f7fb;
+  --color-ink: #0f243d;
+  --color-muted: #5b6b80;
+  --color-line: #e3e9f1;
+}
+
+html,
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+@utility card {
+  @apply rounded-2xl border border-line bg-white shadow-[0_1px_2px_rgba(15,36,61,0.04),0_4px_16px_rgba(15,36,61,0.04)];
+}
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-60;
+}
+@utility btn-primary {
+  @apply btn bg-brand-500 text-white hover:bg-brand-600;
+}
+@utility btn-secondary {
+  @apply btn border border-line bg-white text-ink hover:bg-canvas;
+}
+@utility btn-danger {
+  @apply btn bg-red-600 text-white hover:bg-red-700;
+}
+@utility input {
+  @apply w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm text-ink placeholder:text-slate-400 focus:border-brand-500 focus:ring-4 focus:ring-brand-100 focus:outline-none disabled:bg-canvas disabled:text-muted;
+}
+@utility label {
+  @apply mb-1.5 block text-sm font-medium text-ink;
+}
+@utility badge {
+  @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold;
+}
