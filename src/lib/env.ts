@@ -72,16 +72,15 @@ export function assertSafeCombination(e: Env, raw: Record<string, string | undef
   if (e.APP_ENV === "demo" && e.LIVE_SENDING_ENABLED) {
     throw new Error("The sales demo can never enable live sending.");
   }
-  if (e.LIVE_SENDING_ENABLED && localOnlyEnv) {
-    throw new Error("Live sending cannot be enabled in development or test.");
+  if (e.LIVE_SENDING_ENABLED && e.APP_ENV !== "production") {
+    throw new Error("Live sending can only be enabled in production (development, test, staging and the demo always simulate).");
   }
 }
 
-/** True when this deployment must simulate every external effect (sales demo, dev, test). */
+/** True when this deployment must simulate every external effect (everything except approved production). */
 export function isSimulatedEnvironment(): boolean {
   const e = env();
-  const liveCapable = e.APP_ENV === "production" || e.APP_ENV === "staging";
-  return !(liveCapable && e.LIVE_SENDING_ENABLED);
+  return !(e.APP_ENV === "production" && e.LIVE_SENDING_ENABLED);
 }
 
 export function resetEnvCacheForTests(): void {

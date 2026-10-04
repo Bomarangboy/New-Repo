@@ -22,6 +22,19 @@ export interface OverviewMetrics {
   recent: { id: string; name: string; source: string; sourceLabel: string | null; stage: Stage; submittedAt: Date; assigned: string | null }[];
   sources: { id: string; name: string; active: boolean; lastReceivedAt: Date | null }[];
   unassignedOpen: number;
+  messaging: {
+    acksSent: number;
+    acksFailed: number;
+    acksUncertain: number;
+    acksSimulated: boolean;
+    /** Median seconds from Bluewater receiving the inquiry to the provider accepting the acknowledgment. */
+    medianAckSeconds: number | null;
+    /** Median seconds from receipt to the first message a PERSON sent (calls are not tracked). */
+    medianFirstHumanSeconds: number | null;
+    needsReply: number;
+    lastAlertAt: Date | null;
+    failedAlerts: number;
+  };
   computedAt: Date;
 }
 
@@ -68,8 +81,33 @@ export async function overviewMetrics(ctx: CompanyContext, days: number, now = n
     const [{ unassignedOpen }] = (await tx.select({ unassignedOpen: count() }).from(inquiries)
       .where(and(isNull(inquiries.assignedUserId), sql`${inquiries.stage} in ('new','contacted')`))) as [{ unassignedOpen: number }];
 
+    const ackRows = await tx.execute<{ sent: number; failed: number; uncertain: number; simulated: number; median: number | null }>(sql`
+      select count(*) filter (where m.status in ('submitted','delivered'))::int as sent,
+             count(*) filter (where m.status = 'failed')::int as failed,
+             count(*) filter (where m.status = 'unknown')::int as uncertain,
+             count(*) filter (where m.transport = 'simulated')::int as simulated,
+             percentile_cont(0.5) within group (order by extract(epoch from (m.submitted_at - i.received_at))) filter (where m.submitted_at is not null) as median
+      from app.messages m join app.inquiries i on i.id = m.inquiry_id
+      where m.kind = 'acknowledgment' and i.submitted_at >= ${period.start.toISOString()} and i.submitted_at < ${period.end.toISOString()}`);
+    const human = await tx.execute<{ median: number | null }>(sql`
+      select percentile_cont(0.5) within group (order by secs) as median from (
+        select extract(epoch from (min(m.created_at) - i.received_at)) as secs
+        from app.inquiries i join app.messages m on m.contact_id = i.contact_id and m.kind = 'manual' and m.created_at >= i.received_at
+        where i.submitted_at >= ${period.start.toISOString()} and i.submitted_at < ${period.end.toISOString()} and i.source <> 'csv_import'
+        group by i.id, i.received_at) t`);
+    const [{ needsReply }] = (await tx.execute<{ needsReply: number }>(sql`select count(*)::int as "needsReply" from app.conversations where needs_reply`)) as unknown as [{ needsReply: number }];
+    const [alerts] = await tx.execute<{ last: Date | null; failed: number }>(sql`
+      select max(created_at) as last, count(*) filter (where email_status = 'failed' and created_at >= ${period.start.toISOString()})::int as failed from app.notifications`);
+    const a = ackRows[0]!;
+    const messaging = {
+      acksSent: a.sent, acksFailed: a.failed, acksUncertain: a.uncertain, acksSimulated: a.simulated > 0,
+      medianAckSeconds: a.median == null ? null : Math.round(Number(a.median)),
+      medianFirstHumanSeconds: human[0]?.median == null ? null : Math.round(Number(human[0].median)),
+      needsReply, lastAlertAt: alerts?.last ? new Date(alerts.last) : null, failedAlerts: alerts?.failed ?? 0,
+    };
+
     return {
-      period, timezone: ctx.timezone,
+      period, timezone: ctx.timezone, messaging,
       inquiries: { current, previous, changePct: percentChange(current, previous) },
       daily, bySource, pipeline, sales,
       recent: recent.map((r) => ({ ...r, name: r.name || r.email || r.phone || "Unnamed" })),

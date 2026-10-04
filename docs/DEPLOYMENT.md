@@ -51,11 +51,45 @@ custom roles, fall back to the session pooler or direct connection and record it
    `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`,
    `ENCRYPTION_KEY` (new random value per environment — store a copy in your password manager),
    `SYSTEM_EMAIL_TRANSPORT=postmark`, `SYSTEM_EMAIL_FROM`, `POSTMARK_SERVER_TOKEN`, `LIVE_SENDING_ENABLED=false`.
+   `JOB_TRIGGER_SECRET` (new random value per environment).
    Do **not** set `DATABASE_MIGRATION_URL` in Vercel.
 3. Deploy. The app refuses to start with an unsafe configuration (e.g. local login on a hosted site).
 4. Create the first administrator: create the user in Supabase → Authentication → Users, then run
    `ADMIN_EMAIL=… ADMIN_AUTH_USER_ID=<id> DATABASE_URL=<app url> npm run admin:create`. Sign in and set up
    two‑step verification.
+
+## 3b. Scheduler (every minute) — Stage 3
+
+Background work (acknowledgments, alerts, retries, housekeeping) runs when `POST /api/jobs/run` is called with
+the job secret. Supabase Cron calls it every minute (free, included in the project):
+1. Supabase → **Integrations → Cron** → enable; also enable the **pg_net** extension (Database → Extensions).
+2. 🔐 Supabase → **Integrations → Vault** → add a secret named `job_trigger_secret` with the same value as
+   `JOB_TRIGGER_SECRET` in Vercel (so it isn't typed into the job definition).
+3. Create a job named `bluewater-jobs`, schedule `* * * * *`, type SQL:
+   ```sql
+   select net.http_post(
+     url := 'https://app.yourdomain.com/api/jobs/run',
+     headers := jsonb_build_object('Authorization', 'Bearer ' ||
+       (select decrypted_secret from vault.decrypted_secrets where name = 'job_trigger_secret')),
+     timeout_milliseconds := 55000);
+   ```
+4. Check: `/admin/health` shows "Scheduler last ran" within the last minute or two.
+
+## 3c. Client messaging providers — only with your go‑live approval
+
+Nothing here is needed for staging/demo; they always simulate. For production:
+1. **Twilio:** one main account (Bluewater), one **subaccount per client**. In each subaccount buy a local number,
+   complete **A2P 10DLC** brand + campaign registration for the client (takes days–weeks; fees in COSTS.md), and
+   set the number's *A messaging webhook* to `https://app.yourdomain.com/api/webhooks/twilio/inbound` (POST).
+   Delivery reports use `/api/webhooks/twilio/status` automatically. Twilio's own STOP handling stays on;
+   Bluewater also records opt‑outs itself.
+2. **Postmark:** one server per client (or message stream), verify the client's sending domain (DKIM + Return‑Path
+   DNS records), and set the webhook URL shown once on the company's admin Senders section for Delivery, Bounce,
+   Spam complaint and Inbound.
+3. 🔐 Enter the subaccount SID/token and Postmark token on `/admin/companies/<id>` → Senders (stored encrypted).
+4. Run a test to a team member's own phone/email with the company still in Onboarding, then mark the sender
+   **Verified**. Only after the legal review (D‑18) and your approval set `LIVE_SENDING_ENABLED=true` in the
+   production Vercel environment and redeploy.
 
 ## 4. Domain and HTTPS
 

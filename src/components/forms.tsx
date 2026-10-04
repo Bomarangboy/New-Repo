@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, type ReactNode } from "react";
+import { useActionState, useId, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import { CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 
@@ -46,12 +46,16 @@ export function SubmitButton({ children, variant = "primary", className = "" }: 
   );
 }
 
-export function Field({ label, name, type = "text", hint, ...rest }: { label: string; name: string; type?: string; hint?: string } & React.InputHTMLAttributes<HTMLInputElement>) {
+/** Labeled input. IDs are unique per instance, so several forms on one page never clash. */
+export function Field({ label, name, type = "text", hint, id, ...rest }: { label: string; name: string; type?: string; hint?: string } & React.InputHTMLAttributes<HTMLInputElement>) {
+  const auto = useId();
+  const fieldId = id ?? `${name}-${auto}`;
+  const hintId = hint ? `${fieldId}-hint` : undefined;
   return (
     <div>
-      <label htmlFor={name} className="label">{label}</label>
-      <input id={name} name={name} type={type} className="input" {...rest} />
-      {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
+      <label htmlFor={fieldId} className="label">{label}</label>
+      <input id={fieldId} name={name} type={type} className="input" aria-describedby={hintId} {...rest} />
+      {hint && <p id={hintId} className="mt-1 text-xs text-muted">{hint}</p>}
     </div>
   );
 }

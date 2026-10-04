@@ -8,6 +8,9 @@ import { PACKAGE_LABELS, PACKAGES } from "@/lib/authz/entitlements";
 import { accountPolicy } from "@/lib/authz/account-policy";
 import { formatInZone } from "@/lib/timezones";
 import { canTransition, getCompanyForAdmin, LIFECYCLE, SUPPORT_MAX_MINUTES } from "@/server/companies";
+import { getSenders } from "@/server/senders";
+import { EmailSenderForm } from "./senders";
+import { saveSmsSenderAction } from "../../actions";
 import { changeLifecycleAction, changePackageAction, endSupportAction, inviteOwnerAction, scheduleCancellationAction, startSupportAction, suspendAction, withdrawCancellationAction } from "../../actions";
 
 export const metadata = { title: "Company" };
@@ -26,6 +29,10 @@ export default async function CompanyAdminPage({ params, searchParams }: { param
   const owner = team.find((t) => t.role === "owner" && t.status === "active");
   const nextStatuses = LIFECYCLE.filter((s) => canTransition(c.lifecycleStatus, s));
   const tz = "America/New_York";
+  const senders = await getSenders(ctx, c.id);
+  const smsS = senders.find((x) => x.channel === "sms");
+  const emailS = senders.find((x) => x.channel === "email");
+  const senderBadge = (st?: string) => st === "verified" ? <Badge tone="green">Verified</Badge> : st === "pending_verification" ? <Badge tone="amber">Pending verification</Badge> : st === "disabled" ? <Badge tone="red">Disabled</Badge> : <Badge>Not configured</Badge>;
 
   return (
     <>
@@ -129,6 +136,32 @@ export default async function CompanyAdminPage({ params, searchParams }: { param
             </ActionForm>
           )}
           <p className="mt-3 text-xs text-muted">Support sessions never allow exports, invitations, ownership changes, messaging or deletion, and are recorded in the client&apos;s own activity log.</p>
+        </Card>
+
+        <Card title="Senders (Bluewater-managed)" className="xl:col-span-2">
+          <p className="-mt-2 mb-4 text-sm text-muted">Real messages go out only in production, after go-live approval, from a <b>verified</b> sender. Secrets are stored encrypted and never shown again.</p>
+          <div className="grid gap-6 md:grid-cols-2">
+            <div>
+              <h3 className="mb-2 flex items-center gap-2 font-semibold">Text (Twilio) {senderBadge(smsS?.status)}</h3>
+              <ActionForm action={saveSmsSenderAction} className="space-y-3 text-sm">
+                <input type="hidden" name="companyId" value={c.id} />
+                <select name="status" defaultValue={smsS?.status ?? "not_configured"} className="input" aria-label="Text sender status">
+                  <option value="not_configured">Not configured</option><option value="pending_verification">Pending verification (A2P registration in review)</option><option value="verified">Verified (can send for real)</option><option value="disabled">Disabled</option>
+                </select>
+                <input name="twilioAccountSid" defaultValue={smsS?.twilioAccountSid ?? ""} placeholder="Subaccount SID (AC…)" className="input" />
+                <input name="twilioAuthToken" type="password" autoComplete="off" placeholder={smsS?.hasTwilioToken ? "Auth token saved — leave blank to keep" : "Subaccount auth token"} className="input" />
+                <input name="messagingServiceSid" defaultValue={smsS?.messagingServiceSid ?? ""} placeholder="Messaging Service SID (MG…)" className="input" />
+                <input name="fromNumber" defaultValue={smsS?.fromNumber ?? ""} placeholder="Number (+1XXXXXXXXXX)" className="input" />
+                <input name="notes" defaultValue={smsS?.notes ?? ""} placeholder="Notes (e.g. campaign approved on…)" className="input" />
+                <p className="text-xs text-muted">In Twilio set the inbound webhook to /api/webhooks/twilio/inbound (status callbacks are set automatically).</p>
+                <SubmitButton variant="secondary">Save text sender</SubmitButton>
+              </ActionForm>
+            </div>
+            <div>
+              <h3 className="mb-2 flex items-center gap-2 font-semibold">Email (Postmark) {senderBadge(emailS?.status)}</h3>
+              <EmailSenderForm companyId={c.id} current={emailS ?? null} />
+            </div>
+          </div>
         </Card>
 
         <Card title="Package history">

@@ -1,4 +1,5 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { after, NextResponse, type NextRequest } from "next/server";
+import { runDueJobs } from "@/server/jobs/runner";
 import { MAX_BODY_BYTES, receiveWebsiteSubmission } from "@/server/intake/website";
 
 /** Public endpoint for website forms. Documented in docs/INTAKE.md. */
@@ -30,6 +31,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ key
     ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? req.headers.get("x-real-ip"),
     userAgent: req.headers.get("user-agent"),
   });
+  // Acknowledge the lead within seconds instead of waiting for the next scheduled run.
+  if (res.status === 201) after(() => runDueJobs({ limit: 10, timeBudgetMs: 8000 }).catch(() => {}));
   const headers = { ...corsHeaders(res.allowOrigin), "Cache-Control": "no-store" };
   const isHtmlForm = (req.headers.get("content-type") ?? "").includes("application/x-www-form-urlencoded");
   if (isHtmlForm && res.status < 300) {

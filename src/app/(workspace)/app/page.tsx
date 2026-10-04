@@ -16,6 +16,13 @@ import { STAGES } from "@/server/crm/leads";
 
 export const metadata = { title: "Overview" };
 
+function duration(sec: number): string {
+  if (sec < 90) return `${Math.max(1, Math.round(sec))} sec`;
+  if (sec < 90 * 60) return `${Math.round(sec / 60)} min`;
+  if (sec < 36 * 3600) return `${Math.round(sec / 3600)} hr`;
+  return `${Math.round(sec / 86400)} days`;
+}
+
 const STATUS: Record<StepStatus, { label: string; tone: "green" | "neutral" | "amber" | "blue"; icon: typeof Circle }> = {
   ready: { label: "Ready", tone: "green", icon: CheckCircle2 },
   pending: { label: "Pending", tone: "blue", icon: Circle },
@@ -29,7 +36,6 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
   const days = parsePeriod(sp.days);
   const [m, steps] = await Promise.all([overviewMetrics(ctx, days), onboardingChecklist(ctx)]);
   const done = steps.filter((s) => s.status === "ready" || s.status === "na").length;
-  const msgNote = "Available once automatic replies are set up";
   const change = m.inquiries.changePct;
 
   return (
@@ -61,9 +67,12 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
             </p>
           </div>
         </div>
-        <StatCard icon={MailCheck} label="Acknowledgments sent" value={null} note={msgNote} tone="green" />
-        <StatCard icon={MailX} label="Failed acknowledgments" value={null} note={msgNote} tone="amber" />
-        <StatCard icon={MessageSquareReply} label="Unread replies" value={null} note={msgNote} tone="purple" />
+        <StatCard icon={MailCheck} label="Acknowledgments sent" value={m.messaging.acksSent.toLocaleString("en-US")} tone="green"
+          note={m.messaging.medianAckSeconds == null ? (m.messaging.acksSimulated ? "Simulated in this environment" : "Automatic replies to leads in this period") : `Typically ${duration(m.messaging.medianAckSeconds)} after the inquiry${m.messaging.acksSimulated ? " · simulated" : ""}`} />
+        <StatCard icon={MailX} label="Failed acknowledgments" value={(m.messaging.acksFailed + m.messaging.acksUncertain).toLocaleString("en-US")} tone="amber"
+          note={m.messaging.acksUncertain ? `${m.messaging.acksUncertain} unconfirmed, being checked` : "Couldn't be delivered"} />
+        <Link href="/app/conversations?filter=needs_reply" className="block"><StatCard icon={MessageSquareReply} label="Waiting for your reply" value={m.messaging.needsReply.toLocaleString("en-US")} tone="purple"
+          note={m.messaging.medianFirstHumanSeconds == null ? "Conversations where the lead wrote last" : `Team's first reply typically ${duration(m.messaging.medianFirstHumanSeconds)} after an inquiry`} /></Link>
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
@@ -124,6 +133,10 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
           )}
         </Card>
         <div className="space-y-6">
+          <Card title="Team alerts">
+            <p className="text-sm text-muted">{m.messaging.lastAlertAt ? `Last alert sent ${formatInZone(m.messaging.lastAlertAt, ctx.timezone)}.` : "No alerts sent yet. Your team is emailed when a lead arrives or replies."}</p>
+            {m.messaging.failedAlerts > 0 && <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">{m.messaging.failedAlerts} alert email(s) failed in this period. Bluewater retries automatically.</p>}
+          </Card>
           {m.unassignedOpen > 0 && (
             <Link href="/app/leads?assigned=unassigned" className="card flex items-center gap-4 p-5 hover:border-brand-200">
               <span className="grid size-12 place-items-center rounded-full bg-amber-50 text-amber-600"><UserX className="size-6" /></span>

@@ -19,7 +19,8 @@ Status: ✅ Implemented & verified · 🟡 Implemented, awaiting live verificati
 | 4 | Server‑side company authorization; browser ID not trusted | ✅ | `resolveCompanyContext` | forged‑cookie browser test | |
 | 4 | Isolation: DB records | ✅ | RLS `0001_security.sql` | `isolation.test.ts` | |
 | 4 | Isolation: CRM records, search, exports, intake | ✅ | RLS + composite keys `0003_crm_security.sql` | crm.test.ts | |
-| 4 | Isolation: conversations, jobs, files, reports, integrations, tickets, notifications | ⬜ 3–7 | Same pattern | Each stage adds cross‑company tests | |
+| 4 | Isolation: conversations, jobs, senders, suppressions, notifications | ✅ | RLS `0005_messaging_security.sql` | messaging.test.ts | |
+| 4 | Isolation: files, reports, integrations, tickets | ⬜ 4–7 | Same pattern | Each stage adds cross‑company tests | |
 | 4 | Secrets out of frontend/logs/commits | ✅ | `env.ts`, `.gitignore`, `redactDetails` | unit tests | |
 | 4 | Controlled support access, no unrestricted impersonation | ✅ | `support_access_grants` | integration | |
 | 4 | Admin account recovery without bypass | ✅ (documented) | CLI‑only admin creation | — | OWNER_MANUAL.md |
@@ -31,18 +32,24 @@ Status: ✅ Implemented & verified · 🟡 Implemented, awaiting live verificati
 | 6 | CRM mode selection; external labeled unavailable | ✅ | Settings page, `chooseCrmMode` | integration | |
 | 6 | Built‑in CRM records & pipeline (New→Contacted→Booked→Won/Lost), notes, tasks, sales | ✅ | `server/crm/leads.ts`, lead pages, pipeline board | crm.test.ts, browser | Appointments in Stage 4 |
 | 6 | External connector interface | ⬜ 6 (contract documented) | ARCHITECTURE.md | | D‑11 open |
-| 7–8 | Messaging, inbox, sequences, stop rules, opt‑outs, senders | ⬜ 3–4 | Design in ARCHITECTURE.md | | D‑08/09/18 |
-| 9 | Booking | ⬜ 4 | | | D‑10 open |
+| 7 | Acknowledgment, templates, sending window, pre‑send check | ✅ 🎭 | `server/messaging/*`, MESSAGING.md | messaging.test.ts, messaging-rules unit, stage3 browser | Simulated; live 🟡 |
+| 7 | Two‑way inbox, manual replies, needs‑reply | ✅ 🎭 | `/app/conversations`, `inbox.ts` | messaging.test.ts, browser | |
+| 7 | Durable jobs, retries, idempotency, unknown sends | ✅ | `server/jobs/*`, `send.ts` | concurrent worker + crash tests | Cron trigger 🟡 |
+| 7 | Opt‑outs, suppression, unsubscribe, emergency stop | ✅ | `inbound.ts`, `unsubscribe.ts`, `settings.ts` | messaging/webhooks tests, browser | D‑18 legal review |
+| 7 | Twilio/Postmark senders & webhooks | 🟡 | `transport.ts`, `webhooks.ts`, admin Senders | signature tests with Twilio's library | ⛔ accounts, A2P, go‑live approval |
+| 8 | Follow‑up sequences | ⬜ 4 | | | |
+| 9 | Booking | ⬜ 4 | | | D‑10 Cal.com |
 | 10 | Meta/Google connections | ⬜ 5 | | | ⛔ approvals |
-| 11 | Dashboards & reporting definitions | ✅ (P1/P2 lead metrics) / ⬜ 3–5 | `server/metrics.ts`, METRICS.md, Help page | reconciliation tests, DST unit tests | Messaging & ad metrics later |
+| 11 | Dashboards & reporting definitions | ✅ (P1/P2 lead + messaging metrics) / ⬜ 5 | `server/metrics.ts`, METRICS.md, Help page | reconciliation tests, DST unit tests | Ad metrics in Stage 5 |
 | 12 | All Customers directory + filters | ✅ | `/admin` | browser test | |
 | 12 | Separate lifecycle / billing / suspension | ✅ | schema + `account-policy.ts` | unit + integration | |
 | 12 | Package & lifecycle history, reactivation, churn reason | ✅ | `server/companies.ts` | integration | |
-| 12 | Scheduled cancellation, service end | ✅ / 🟡 | `scheduleCancellation`, `accountPolicy` end-date rule | crm.test.ts, unit | Auto status change runs with the Stage 3 scheduler |
+| 12 | Scheduled cancellation, service end | ✅ | `scheduleCancellation`, `applyDueCancellations` in maintenance | crm.test.ts, unit | |
 | 12 | Retention, deletion | ⬜ 7 | | | |
 | 13 | Routine config in database, sensitive changes logged | ✅ (Stage‑1 scope) | `audit_log` | integration | Templates/sequences later |
 | 14 | Onboarding checklist with statuses | ✅ (Stage‑1 data) | `server/onboarding.ts` | screenshot | Steps fill in as features land |
-| 15–16 | Health center, monitoring, playbooks, support tickets | ⬜ 7 | | | D‑14, D‑17 |
+| 15–16 | Health center (jobs, unknown messages, senders) | ✅ (Stage‑3 scope) | `/admin/health`, `server/health.ts` | browser | Monitoring/tickets Stage 7 |
+| 15–16 | Monitoring, full playbooks, support tickets | ⬜ 7 | | | D‑17 |
 | 17 | Backups & disaster recovery | ⬜ 7 | Supabase daily backups | Restore test planned | |
 | 18 | Capacity targets & load test | ⬜ 7 | Targets proposed D‑15 | | |
 | 19 | Usage tracking, cost estimates | ⬜ 3/7 | | | D‑13, D‑16 |

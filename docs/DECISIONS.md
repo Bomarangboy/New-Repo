@@ -19,19 +19,22 @@ Status key: **Decided** (owner approved) · **Assumed** (reasonable default; rev
 | D‑07 | Background jobs | **Assumed** — Postgres job table + Supabase Cron trigger | Stage 3 |
 | D‑08 | Email provider | **Assumed** — Postmark | Live email |
 | D‑09 | SMS provider | **Assumed** — Twilio (subaccount per client) | Live SMS |
-| D‑10 | Calendar / booking connector | **Open** — Cal.com recommended | Stage 4 |
+| D‑10 | Calendar / booking connector | **Decided** — Cal.com | Stage 4 |
 | D‑11 | First external CRM connector | **Open** — wait for first client | Stage 6 |
 | D‑12 | Environments | **Assumed** — dev, staging, demo, production | Deployment |
-| D‑13 | Budgets | **Open** | Purchases |
-| D‑14 | Support hours & escalation | **Open** | Launch |
+| D‑13 | Budgets | **Decided** — about $100/month total | Purchases |
+| D‑14 | Support hours & escalation | **Decided** — 7am–1am Eastern, owner | Launch |
 | D‑15 | Capacity & recovery targets | **Assumed** (proposed below) | Launch |
 | D‑16 | Billing | **Assumed** — manual invoicing first | — |
 | D‑17 | Monitoring & independent alerts | **Assumed** — Sentry + external uptime monitor | Launch |
-| D‑18 | Legal review | **Open** — attorney review of consent/messaging | Live sending |
+| D‑18 | Legal review | **Owner‑managed** — owner arranges; live sending stays off until owner confirms | Live sending |
 | D‑19 | Pipeline unit | **Assumed** — pipeline stage lives on each inquiry | — |
 | D‑20 | Messaging eligibility of stored leads | **Assumed** — only live submissions on active accounts | — |
 | D‑21 | Duplicate handling | **Assumed** — match on email or phone; never overwrite | — |
 | D‑22 | Intake abuse controls | **Assumed** — allowed websites, spam trap, 30/min, optional signing | — |
+| D‑23 | Where real messages may be sent from | **Assumed** — production only | — |
+| D‑24 | Acknowledgment channel & timing | **Assumed** — text if permitted, else email; sending window | — |
+| D‑25 | Uncertain sends | **Assumed** — never auto‑retry; mark "unknown" for review | — |
 
 ---
 
@@ -115,7 +118,7 @@ Status key: **Decided** (owner approved) · **Assumed** (reasonable default; rev
   Registration review typically takes days to weeks.
 - Per‑message US price: **not verified** (pricing page blocked here) — check [twilio.com/en-us/sms/pricing/us](https://www.twilio.com/en-us/sms/pricing/us).
 
-### D‑10 Calendar / booking connector — Open (needed for Stage 4)
+### D‑10 Calendar / booking connector — Decided: Cal.com (owner, 2026‑10‑04)
 - **Recommendation:** **Cal.com** — documented webhooks for booking created/rescheduled/cancelled with an
   HMAC signature header (`X-Cal-Signature-256`) ([docs](https://cal.com/docs/developing/guides/automation/webhooks)).
 - **Alternatives:** Calendly (webhooks require a paid Calendly plan — verify), Google Calendar directly
@@ -135,15 +138,24 @@ Status key: **Decided** (owner approved) · **Assumed** (reasonable default; rev
 | Production | app.yourdomain.com | separate project (Pro) | Production | real |
 Each extra Supabase project adds compute cost (one Micro is covered by the included credit).
 
-### D‑13 Budgets — Open
-- Please give a monthly ceiling for (a) development/staging/demo and (b) production at pilot scale.
+### D‑13 Budgets — Decided: about $100/month (owner, 2026‑10‑04)
+- **Owner budget: about $100/month total.** Plan that fits (list prices, to re‑check before buying):
+  Vercel Pro ~$20 · Supabase Pro ~$25 (production only) · staging and the sales demo on a **separate free
+  Supabase organization** (free projects pause after inactivity — wake the demo project before a presentation) ·
+  Postmark free tier (100 emails/month) during the pilot, Basic ~$15 once volume needs it · Twilio ~$1–2/month per
+  number + campaign fee ~$1.50–10/month per client + usage · domain ~$1–2/month. Estimated **$60–95/month** for
+  1–3 pilot clients. Texting usage grows with each client and should be re‑billed to clients (D‑06).
+  Point‑in‑time recovery ($100/month) does **not** fit; daily backups (24‑hour recovery point) are the plan.
+- Original question (answered): monthly ceiling for development/staging/demo and production.
   Rough fixed platform floor at pilot scale, before messaging usage: Vercel Pro ~$20 + Supabase Pro ~$25
   + extra Supabase projects for staging/demo (compute) + Postmark ~$15 + Twilio per‑client fees + monitoring
   (free tiers available). See COSTS.md.
 
-### D‑14 Support hours & escalation — Open
-- I have not invented a support team or 24/7 promise. Please decide hours, response targets and who is
-  contacted for emergencies (you, a contractor, etc.).
+### D‑14 Support hours & escalation — Decided (owner, 2026‑10‑04)
+- **Support hours: 7:00am–1:00am Eastern, every day. Support person and emergency contact: the owner.**
+  No 24/7 promise. Outside hours, the system keeps capturing leads and sending approved automatic messages;
+  problems are queued for the morning, and independent uptime alerts (D‑17) reach the owner directly.
+  Response‑time targets inside hours are still to be set by the owner.
 
 ### D‑15 Capacity & recovery targets — Assumed (proposal; not measured yet)
 - Pilot: up to 10 companies, 50 users, 500 leads/day total, peak 5 lead events/second, 5,000 messages/day.
@@ -158,7 +170,11 @@ Each extra Supabase project adds compute cost (one Micro is covered by the inclu
 - Error tracking (e.g. Sentry free tier) and an **external** uptime monitor that alerts by a channel that
   doesn't depend on our app or messaging providers (e.g., the monitor's own SMS/app push).
 
-### D‑18 Legal review — Open
+### D‑18 Legal review — Owner‑managed (owner, 2026‑10‑04)
+- The owner will arrange the review. **Live sending to real people stays switched off until the owner tells us
+  the review is done** (the go‑live checklist will record it). Additional item found in Stage 3: the FCC's updated
+  opt‑out rules (revocation of consent "by any reasonable means", not only STOP) — Bluewater treats common
+  opt‑out words as opt‑outs and lets staff record an opt‑out by hand; an attorney should confirm this is enough.
 - Items requiring an attorney: consent language on client web forms and lead forms; TCPA/state texting
   rules and quiet hours; CAN‑SPAM; data retention/deletion terms; sender ownership/porting terms; terms of
   service and privacy policy; Meta/Google platform terms for storing lead data.
@@ -183,3 +199,22 @@ Each extra Supabase project adds compute cost (one Micro is covered by the inclu
 - Per‑form allowed‑websites list (browser submissions), hidden spam‑trap field, 30 submissions/minute/form,
   optional HMAC signing for server‑to‑server use. CAPTCHA is not added by default (hurts conversion); revisit if
   spam appears. Rate‑limit counts live in the database (no extra service).
+
+### D‑23 Live sending only from production — Assumed (Stage 3)
+- Real texts/emails to customers are possible only when ALL are true: `APP_ENV=production`, `LIVE_SENDING_ENABLED=true`
+  (owner approval), the company is a real customer (not demo/test), the company's sender is marked verified by
+  Bluewater, and the account status allows sending. Development, test, staging and the demo always use the
+  **simulated** transport, which records messages and shows them in the inbox labeled "Simulated".
+  (Stage 1 allowed staging; tightened here so a test environment can never text a real person.)
+
+### D‑24 Acknowledgment channel & timing — Assumed (Stage 3)
+- Text first when the lead gave text permission for responses and the number isn't opted out; otherwise email
+  (a direct reply to the person's own inquiry). If neither is possible, no acknowledgment is sent and the team
+  is told why. Messages respect the company's sending window (default 8am–9pm local, every day); an inquiry
+  outside the window is acknowledged when the window opens, unless more than 24 hours have passed — then it is
+  skipped as stale rather than sent late. The team is notified immediately regardless of the window.
+
+### D‑25 Uncertain provider outcomes — Assumed (Stage 3)
+- If a send attempt is interrupted after it may have reached the provider (timeout, crash), the message is marked
+  **unknown** and is never retried automatically (a duplicate text is worse than a delayed one). It appears in the
+  administrator's messaging health list for a person to check with the provider and resolve.

@@ -11,8 +11,8 @@ not a provider's live service unless stated.
 |---|---|---|
 | 1 | Architecture, project setup, authentication, company isolation, permissions, admin company management | **Done** (live Supabase check pending) |
 | 2 | Company lifecycle details, built‑in CRM (contacts, inquiries, notes, tasks, pipeline), website intake, CSV import, basic dashboard, demo dataset v1 | **Done** |
-| 3 | Messaging (templates, acknowledgment, notifications), two‑way inbox, durable jobs, stop rules, opt‑outs, suppression | Next |
-| 4 | Follow‑up sequences, sending windows, booking connector (D‑10), reminders | Planned |
+| 3 | Messaging (templates, acknowledgment, notifications), two‑way inbox, durable jobs, stop rules, opt‑outs, suppression | **Done** (simulated; live Twilio/Postmark pending accounts & approval) |
+| 4 | Follow‑up sequences, booking connector (Cal.com, D‑10), reminders | Next |
 | 5 | Meta & Google connectors (lead forms + reporting), reporting definitions | Planned; live use **blocked** by platform approvals |
 | 6 | First external CRM connector (D‑11) | Planned; waits for first client |
 | 7 | Billing/usage tooling, Health & Recovery Center, playbooks, backups & restore test, load test, deployment readiness | Planned |
@@ -51,7 +51,8 @@ The sales demo grows with each stage (foundation is in Stage 1–2).
 - [ ] Migrations on Supabase incl. custom `bluewater_app` role through the pooler.
 
 ### Blocked / needs your input
-- [ ] D‑13 budgets, D‑14 support hours, D‑10 booking tool, D‑18 legal review (see DECISIONS.md).
+- [x] D‑13 budget (~$100/month), D‑14 support hours (7am–1am ET, owner), D‑10 Cal.com — answered 2026‑10‑04.
+- [ ] D‑18 legal review — owner‑managed; live sending stays off until the owner confirms.
 
 ### Simulated
 - System emails in development/test/demo go to the on‑screen development mailbox (`/dev/mailbox`, dev/test only).
@@ -114,12 +115,53 @@ Last run: see the Stage 2 verification below.
 ## Verification (Stage 2 run, 2026‑10‑04)
 115 unit + integration tests and 17 browser tests passed; typecheck, lint and production build clean.
 
-## Stage 3 plan (next)
-1. Jobs table + worker endpoint (`/api/jobs/run`, secret), Supabase Cron trigger; leases, retries with backoff,
-   per‑company fairness, idempotency keys; `applyDueCancellations` as a scheduled job.
-2. Transport interface: simulated (dev/demo/test, always) + Twilio SMS + Postmark email (disabled until approved).
-3. Templates with validated fields; acknowledgment on eligible inquiries; owner/employee notifications.
-4. Conversations & messages (queued/submitted/delivered/failed/unknown), provider webhooks (signature‑verified,
-   out‑of‑order safe), inbound replies → inbox, STOP/HELP handling, suppression list per company.
-5. Pre‑send eligibility check (reply, opt‑out, closed, paused, account status, window, already sent).
-6. Tests: duplicate events, retries, worker crash mid‑send, stop after reply/opt‑out, cross‑company jobs.
+## Stage 3 checklist
+
+### Implemented and verified
+- [x] Durable job queue (`jobs` table, RLS): written in the same transaction as the lead; `SKIP LOCKED` claiming,
+      5‑per‑company fairness, retries with backoff → "dead", lease recovery, idempotency keys, maintenance under an
+      advisory lock (stale jobs, interrupted sends → unknown, due cancellations). `POST /api/jobs/run` (bearer secret),
+      run‑after‑intake, `npm run jobs:work` locally.
+- [x] Transport choice: live only in production + master switch + real customer + verified sender (D‑23); otherwise
+      simulated and labeled. Production customers without a verified sender are cancelled + team notified, never faked.
+- [x] Templates: validated fields with fallbacks, required STOP wording, segment counting (GSM‑7/UCS‑2), live preview,
+      versioned saves; default templates until edited.
+- [x] Automatic acknowledgment with a pre‑send check (account, emergency stop, stage, 24 h age, reply/contacted,
+      consent, suppression, sending window in company timezone, DST‑correct); one per inquiry (DB unique key; concurrent
+      worker test); problems notified to the team.
+- [x] Message states with "unknown" never auto‑retried (D‑25); out‑of‑order status updates never go backwards;
+      status history append‑only.
+- [x] Inbox: conversation list with Needs‑reply badge, conversation page, manual text/email replies (permission,
+      suppression and consent checks), mark handled, lead page Messages card + acknowledgment status.
+- [x] Incoming handling: keyword + phrase opt‑outs, START to resume, replies stop automation and notify; manual opt‑out
+      and lift with reason; signed email unsubscribe page with confirmation; bounces/complaints suppress.
+- [x] Team notifications (new lead, reply, acknowledgment problem) — once per event; dev mailbox in dev/test.
+- [x] Automations page: templates, sending window/days, recipients, on/off; **emergency stop** (owners/support).
+- [x] Admin: per‑company senders (Twilio subaccount, Postmark stream; tokens encrypted, never shown again),
+      Health page (simulated/live mode, maintenance heartbeat, failed/dead jobs with retry/cancel, unknown messages to
+      resolve).
+- [x] Dashboard: acknowledgment counts (sent/failed/uncertain/simulated), median time to acknowledgment and to first
+      human reply, needs‑reply count, team alerts — blanks shown as "—", never 0.
+- [x] Onboarding checklist steps for senders, templates and notifications from real data.
+- [x] Sample data: simulated conversations, a STOP, replies awaiting an answer.
+- [x] Cross‑company tests for jobs, conversations, messages, senders, suppressions, notifications.
+
+### Implemented, awaiting live verification
+- [ ] Twilio sending, status callbacks and incoming texts (signature checked with Twilio's library) — needs accounts,
+      A2P 10DLC registration per client, and go‑live approval.
+- [ ] Postmark client email + webhooks — needs account, verified domains.
+- [ ] Supabase Cron → `/api/jobs/run` every minute — needs the Supabase project.
+
+### Blocked / owner
+- [ ] Legal review of message wording/consent (D‑18) before live sending.
+
+## Verification (Stage 3 run, 2026‑10‑04)
+170 unit + integration tests (Vitest, real PostgreSQL) and 23 browser tests passed;
+typecheck, lint and production build clean. Mutation checks: idempotency, status ordering, reply check.
+
+## Stage 4 plan (next)
+1. Follow‑up sequences (Package 2): steps, delays, channel, stop on reply/booking/opt‑out/stage change, same pre‑send check.
+2. Cal.com booking connector (simulated until connected): booking link in messages, booking webhook → appointment,
+   stage "Booked", stops sequences.
+3. Appointment reminders, no‑show handling, rescheduling.
+4. Tests: stop conditions, double‑booking webhooks, cross‑company isolation for sequences/appointments.

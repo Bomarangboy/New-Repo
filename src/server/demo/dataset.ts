@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { and, eq, gt, sql } from "drizzle-orm";
 import type { Tx } from "@/lib/db/client";
-import { inquiries, inquiryEvents, intakeSources, notes, tasks } from "@/lib/db/schema";
+import { contacts, conversations, inquiries, inquiryEvents, intakeSources, messages, notes, suppressions, tasks } from "@/lib/db/schema";
 import { newToken } from "@/lib/crypto";
 import { recordInquiry, type InquirySource } from "@/server/crm/record-inquiry";
 
@@ -83,6 +83,8 @@ export async function generateDemoDataset(tx: Tx, o: DatasetOptions) {
         consent: m.source === "manual" || !person.phone ? [] : [{ channel: "sms", purpose: "inquiry_response", granted: rand() < 0.8, method: m.source === "website_form" ? "web_form_checkbox" : "lead_form", statement: "Text me about my request. Reply STOP to opt out. (sample)" }],
       }, { companyId: o.companyId, source: m.source, sourceLabel: m.label, intakeSourceId: m.source === "website_form" ? form!.id : null, automationOrigin: "none", actorType: "system", assignedUserId: o.memberIds.length ? pick(o.memberIds) : null });
       created++;
+      // Sample leads are "received" when they were submitted (a few seconds later), not when the seed ran.
+      await tx.update(inquiries).set({ receivedAt: new Date(submittedAt.getTime() + 2000 + Math.floor(rand() * 8000)) }).where(eq(inquiries.id, res.inquiry.id));
 
       // Older leads are further along the pipeline.
       const age = d / days;
@@ -104,5 +106,56 @@ export async function generateDemoDataset(tx: Tx, o: DatasetOptions) {
       }
     }
   }
+  await sampleConversations(tx, o.companyId, now, rand, pick);
   return { created };
+}
+
+/**
+ * Fictional, SIMULATED message history for recent leads: automatic acknowledgments, some replies,
+ * team answers, a few conversations waiting for a reply, and one opt-out. Every row is marked
+ * transport = "simulated" so it can never be mistaken for a real delivery.
+ */
+async function sampleConversations(tx: Tx, companyId: string, now: Date, rand: () => number, pick: <T>(xs: readonly T[]) => T) {
+  const recent = await tx.select({ i: inquiries, c: { id: contacts.id, name: contacts.fullName, email: contacts.email, phone: contacts.phoneE164 } })
+    .from(inquiries).innerJoin(contacts, eq(contacts.id, inquiries.contactId))
+    .where(and(eq(inquiries.companyId, companyId), gt(inquiries.submittedAt, new Date(now.getTime() - 21 * 86400_000)), sql`${inquiries.source} <> 'manual'`));
+  const REPLIES = ["Thanks! Is Thursday morning possible?", "Great, what does a visit cost?", "Can you send a quote by email?", "Yes please call me after 5pm."];
+  const ANSWERS = ["Thursday at 9am works — see you then!", "Our visit fee is $89, credited toward the job.", "Absolutely, sending it over today.", "Will do — talk this evening."];
+  let optedOut = false;
+  for (const { i, c } of recent) {
+    const to = c.phone ?? c.email;
+    if (!to) continue;
+    const channel = c.phone ? "sms" : "email";
+    const t0 = new Date(i.receivedAt.getTime() + 20_000 + Math.floor(rand() * 40_000));
+    const [conv] = await tx.insert(conversations).values({ companyId, contactId: c.id }).onConflictDoNothing().returning();
+    if (!conv) continue;
+    const first = (c.name.split(" ")[0] || "there");
+    const ins = (v: Partial<typeof messages.$inferInsert> & { createdAt: Date; body: string; direction: string; kind: string; status: string }) =>
+      tx.insert(messages).values({ companyId, conversationId: conv.id, contactId: c.id, inquiryId: i.id, channel, toAddress: to, transport: "simulated", ...v,
+        providerMessageId: `sim_seed_${crypto.randomUUID()}`, statusUpdatedAt: v.createdAt });
+    await ins({ direction: "outbound", kind: "acknowledgment", status: "delivered", createdAt: t0, submittedAt: t0, deliveredAt: t0,
+      body: channel === "sms" ? `Hi ${first}, thanks for contacting us! We received your request about ${i.serviceRequested ?? "your project"} and will be in touch shortly. Reply STOP to opt out.` : `Hi ${first},\n\nThanks for reaching out — we received your request and will get back to you shortly.`,
+      subject: channel === "email" ? "We received your request" : null, templateKey: channel === "sms" ? "ack_sms" : "ack_email", templateVersion: 0 });
+    let last = t0, needsReply = false, lastInbound: Date | null = null, lastHuman: Date | null = null;
+    if (!optedOut && channel === "sms" && rand() < 0.08) {
+      const t = new Date(t0.getTime() + 600_000);
+      await ins({ direction: "inbound", kind: "inbound", status: "received", createdAt: t, body: "STOP", statusReason: "opt_out", toAddress: "" });
+      await tx.insert(suppressions).values({ companyId, channel: "sms", address: to, reason: "opt_out_keyword", detail: "STOP (sample)", createdAt: t }).onConflictDoNothing();
+      optedOut = true; last = t; lastInbound = t;
+    } else if (rand() < 0.4) {
+      const k = Math.floor(rand() * REPLIES.length);
+      const tIn = new Date(t0.getTime() + (10 + rand() * 300) * 60_000);
+      if (tIn < now) {
+        await ins({ direction: "inbound", kind: "inbound", status: "received", createdAt: tIn, body: REPLIES[k]!, toAddress: "" });
+        last = tIn; lastInbound = tIn;
+        const tOut = new Date(tIn.getTime() + (5 + rand() * 90) * 60_000);
+        if (rand() < 0.75 && tOut < now) {
+          await ins({ direction: "outbound", kind: "manual", status: "delivered", createdAt: tOut, submittedAt: tOut, deliveredAt: tOut, body: ANSWERS[k]! });
+          last = tOut; lastHuman = tOut;
+        } else needsReply = true;
+      }
+    }
+    await tx.update(conversations).set({ lastMessageAt: last, lastInboundAt: lastInbound, lastHumanOutboundAt: lastHuman, needsReply }).where(eq(conversations.id, conv.id));
+  }
+  void pick;
 }

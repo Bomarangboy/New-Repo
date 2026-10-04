@@ -17,7 +17,12 @@ shows the time it was calculated. Values that have no data source yet show **"No
 | Pipeline (Package 2+) | **Current** stage of the inquiries received in the period (an acquisition cohort). | Adds up to "New inquiries". Not "stage changes that happened in the period". |
 | Open leads with no one assigned | Inquiries in New or Contacted with no assignee, regardless of date. | |
 | Recorded sales (Package 3) | Sum of sale values on inquiries marked **Won** whose won date falls in the period (events in the period). | USD only. Won leads without a recorded value are counted and flagged; the total is then marked incomplete. These are sales recorded in Bluewater — not revenue attributed to advertising. |
-| Acknowledgments sent / failed, unread replies | Not available until automatic messaging is set up (Stage 3). | Shown as "No data yet". |
+| Acknowledgments sent | Automatic acknowledgments accepted by the provider (or simulated) for inquiries **submitted in the period**. | "Accepted" is not proof of delivery; delivery reports are shown per message. Simulated sends are labeled. |
+| Failed acknowledgments | Acknowledgments the provider rejected, plus "unconfirmed" ones (interrupted sends being checked). | Inquiries that couldn't be acknowledged at all (no permission/address) are not counted here; the team is alerted for each. |
+| Acknowledgment time | Median time from Bluewater recording the inquiry to the provider accepting the acknowledgment. | Automatic only. Excludes inquiries that weren't acknowledged. |
+| Team's first reply time | Median time from the inquiry to the first message a **person** sent that contact. | Kept separate from the automatic acknowledgment. Phone calls aren't tracked, so a lead called first looks slower. Imports excluded. |
+| Waiting for your reply | Conversations where the lead wrote last and nobody has replied or marked it handled. | Current count, not period-based. |
+| Team alerts | When the last alert email went out; failed alert emails in the period. | |
 
 **What these numbers do not claim.** A lead's campaign details are shown only when they arrived with the
 inquiry (UTM tags, Google/Facebook click IDs, lead-form IDs). Many inquiries can't be linked to a specific ad;

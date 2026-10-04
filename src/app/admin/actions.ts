@@ -11,6 +11,9 @@ import type { LifecycleStatus } from "@/lib/authz/account-policy";
 import { changeLifecycle, changePackage, createCompany, endSupportAccess, LIFECYCLE, scheduleCancellation, setSuspended, startSupportAccess, withdrawCancellation } from "@/server/companies";
 import { inviteOwner } from "@/server/invitations";
 import type { FormState } from "@/components/forms";
+import { saveEmailSender, saveSmsSender, SENDER_STATUSES } from "@/server/senders";
+import { cancelJob, retryJobNow } from "@/server/jobs/queue";
+import { resolveUnknownMessage } from "@/server/health";
 
 async function run(fn: () => Promise<string>): Promise<FormState> {
   try {
@@ -120,4 +123,65 @@ export async function withdrawCancellationAction(_: FormState, fd: FormData): Pr
     revalidatePath(`/admin/companies/${id}`);
     return "Cancellation withdrawn.";
   });
+}
+
+export async function saveSmsSenderAction(_: FormState, fd: FormData): Promise<FormState> {
+  return run(async () => {
+    const ctx = await adminActionContext();
+    const id = String(fd.get("companyId"));
+    await saveSmsSender(ctx, id, {
+      status: String(fd.get("status")) as (typeof SENDER_STATUSES)[number], twilioAccountSid: String(fd.get("twilioAccountSid") ?? ""),
+      twilioAuthToken: String(fd.get("twilioAuthToken") ?? "") || undefined, messagingServiceSid: String(fd.get("messagingServiceSid") ?? ""),
+      fromNumber: String(fd.get("fromNumber") ?? ""), notes: String(fd.get("notes") ?? ""),
+    }, await requestId());
+    revalidatePath(`/admin/companies/${id}`);
+    return "Text sender saved.";
+  });
+}
+
+export type WebhookState = { error?: string; ok?: string; webhookUrl?: string } | null;
+
+export async function saveEmailSenderAction(_: WebhookState, fd: FormData): Promise<WebhookState> {
+  try {
+    const ctx = await adminActionContext();
+    const id = String(fd.get("companyId"));
+    const url = await saveEmailSender(ctx, id, {
+      status: String(fd.get("status")) as (typeof SENDER_STATUSES)[number], postmarkServerToken: String(fd.get("postmarkServerToken") ?? "") || undefined,
+      fromEmail: String(fd.get("fromEmail") ?? ""), fromName: String(fd.get("fromName") ?? ""), replyTo: String(fd.get("replyTo") ?? ""),
+      notes: String(fd.get("notes") ?? ""), rotateWebhook: fd.get("rotateWebhook") === "on",
+    }, await requestId());
+    revalidatePath(`/admin/companies/${id}`);
+    return { ok: "Email sender saved.", webhookUrl: url ?? undefined };
+  } catch (e) {
+    return { error: userMessage(e) };
+  }
+}
+
+export async function retryJobAction(fd: FormData): Promise<void> {
+  const ctx = await adminActionContext();
+  const ok = await retryJobNow(String(fd.get("jobId")));
+  if (ok) await logAdmin(ctx, "jobs.retried", String(fd.get("jobId")));
+  revalidatePath("/admin/health");
+}
+
+export async function cancelJobAction(fd: FormData): Promise<void> {
+  const ctx = await adminActionContext();
+  const ok = await cancelJob(String(fd.get("jobId")), "Cancelled by Bluewater administrator");
+  if (ok) await logAdmin(ctx, "jobs.cancelled", String(fd.get("jobId")));
+  revalidatePath("/admin/health");
+}
+
+export async function resolveUnknownAction(_: FormState, fd: FormData): Promise<FormState> {
+  return run(async () => {
+    const ctx = await adminActionContext();
+    await resolveUnknownMessage(ctx, String(fd.get("messageId")), fd.get("outcome") === "submitted" ? "submitted" : "failed", String(fd.get("note") ?? ""), await requestId());
+    revalidatePath("/admin/health");
+    return "Recorded.";
+  });
+}
+
+async function logAdmin(ctx: { userId: string }, action: string, targetId: string) {
+  const { withUserDb } = await import("@/lib/db/context");
+  const { audit } = await import("@/lib/audit");
+  await withUserDb(ctx.userId, (tx) => audit(tx, { companyId: null, actorUserId: ctx.userId, actorType: "platform_admin", action, targetType: "job", targetId }));
 }

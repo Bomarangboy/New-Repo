@@ -76,10 +76,12 @@ Stage 2 (built): `contacts` (unique per company on normalized email / E.164 phon
 assignee, sale value, tracking, external IDs, automation eligibility; child of contact via (company_id, id)) ·
 `consent_records` (append-only evidence) · `notes` · `tasks` · `inquiry_events` (append-only history) ·
 `intake_sources` (website form connections) · `intake_events` (every submission, unique per idempotency key) ·
-`import_batches` (previewed → committed once). See INTAKE.md and METRICS.md. Stage 3 adds conversations, messages (queued/submitted/delivered/failed/unknown),
-templates, suppressions, consent records, jobs.
+`import_batches` (previewed → committed once). See INTAKE.md and METRICS.md. Stage 3 added `jobs`, `messaging_settings`, `message_templates` (versioned),
+`company_senders` (encrypted provider tokens; platform-writable only), `conversations`, `messages`
+(queued/sending/submitted/delivered/failed/unknown), `message_status_events` (append-only), `suppressions`
+and `notifications` — all with forced RLS. Rules: MESSAGING.md.
 
-## Background processing design (Stage 3, decided in D‑07)
+## Background processing (built in Stage 3, D‑07)
 
 - A job row is written **in the same transaction** as the event that causes it (e.g. new inquiry ⇒
   acknowledgment job) — no lead without its job, no job without its lead.
@@ -126,6 +128,8 @@ forced to simulated mode in code (not just hidden in the interface).
 ## Known limitations (current)
 
 - Supabase Auth path is not yet verified against a live project (sandbox could not run Supabase locally).
-- Messaging, automations, booking, ad reporting and demo prospect access are not built yet (Stages 3–7).
+- Messaging is built (Stage 3) but only the simulated transport has been exercised; Twilio/Postmark paths
+  await accounts (see MESSAGING.md). Follow-up sequences, booking, ad reporting and demo prospect access are
+  not built yet (Stages 4–7).
 - No rate limiting on sign‑in beyond account lockout (local) / Supabase's built‑in limits; Stage 7 adds
   edge rate limiting for public endpoints.

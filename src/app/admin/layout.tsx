@@ -13,6 +13,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <AppShell
       nav={[
         { href: "/admin", label: "All Customers", icon: "building" },
+        { href: "/admin/health", label: "Health", icon: "health" },
         { href: "/admin/activity", label: "Activity Log", icon: "log" },
       ]}
       banner={<SimulationBanner />}

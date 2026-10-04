@@ -9,6 +9,9 @@ import { roleCan } from "@/lib/authz/permissions";
 import { hasFeature } from "@/lib/authz/entitlements";
 import { formatInZone } from "@/lib/timezones";
 import { assignableMembers, getLead, STAGES, STAGE_LABELS } from "@/server/crm/leads";
+import { openConversationForLeadAction } from "../../conversations/actions";
+import { acknowledgmentStatus, recentMessagesForContact } from "@/server/messaging/inbox";
+import { MessageSquare } from "lucide-react";
 import { addNoteAction, addTaskAction, assignAction, changeStageAction, recordSaleAction, toggleTaskAction, updateContactAction } from "../actions";
 
 export const metadata = { title: "Lead" };
@@ -49,6 +52,7 @@ export default async function LeadPage({ params, searchParams }: { params: Promi
   if (!lead) notFound();
   const { created } = await searchParams;
   const members = await assignableMembers(ctx);
+  const [recentMsgs, ack] = await Promise.all([recentMessagesForContact(ctx, lead.contact.id), acknowledgmentStatus(ctx, lead.inquiry.id)]);
   const names = new Map(members.map((m) => [m.userId, m.name || m.email]));
   const { inquiry: q, contact: c } = lead;
   const canEdit = roleCan(ctx.role, "lead.edit") && ctx.policy.login === "full";
@@ -95,6 +99,28 @@ export default async function LeadPage({ params, searchParams }: { params: Promi
                 : q.automationOrigin === "held" ? "Arrived while automatic messages were off for this account; it won't be messaged automatically."
                 : "Added by hand or imported; it won't receive automatic messages."}
             </p>
+          </Card>
+
+          <Card title="Messages" actions={roleCan(ctx.role, "conversation.view") ? (
+            <form action={openConversationForLeadAction}><input type="hidden" name="inquiryId" value={q.id} /><button className="btn-secondary px-3 py-1.5 text-sm"><MessageSquare className="size-4" /> Open conversation</button></form>
+          ) : undefined}>
+            {ack && (
+              <p className="mb-3 rounded-xl bg-canvas px-3 py-2 text-sm">
+                <span className="font-medium">Automatic acknowledgment: </span>
+                {ack.status === "succeeded" ? "sent" : ack.status === "queued" ? (ack.result ? `waiting — ${ack.result.toLowerCase()} (next try ${formatInZone(ack.runAt, tz, { timeStyle: "short", dateStyle: "medium" })})` : "about to send") : ack.status === "cancelled" ? `not sent — ${ack.result ?? "no longer needed"}` : ack.status === "dead" ? "failed after several tries — Bluewater has been alerted" : ack.status}
+              </p>
+            )}
+            {recentMsgs.length === 0 ? <p className="text-sm text-muted">No messages with this person yet.</p> : (
+              <ul className="space-y-2 text-sm">
+                {recentMsgs.map((m) => (
+                  <li key={m.id} className="flex items-start gap-2">
+                    <Badge tone={m.direction === "inbound" ? "purple" : "blue"}>{m.direction === "inbound" ? "They wrote" : m.kind === "acknowledgment" ? "Auto" : "You"}</Badge>
+                    <span className="min-w-0 flex-1 truncate">{m.body.split("\n")[0]}</span>
+                    <span className="shrink-0 text-xs text-muted">{m.transport === "simulated" ? "simulated · " : ""}{m.direction === "outbound" ? m.status : ""}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </Card>
 
           <Card title="Notes">

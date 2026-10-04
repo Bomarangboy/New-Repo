@@ -19,7 +19,15 @@ function offsetMs(d: Date, tz: string): number {
 
 /** The UTC instant of local midnight for the calendar date (y, m, d) in `tz`. */
 export function zonedMidnight(y: number, m: number, d: number, tz: string): Date {
-  const guess = Date.UTC(y, m - 1, d);
+  return zonedDateTime(y, m, d, 0, tz);
+}
+
+/**
+ * The UTC instant of a local wall-clock time (minutes after midnight) on (y, m, d) in `tz`.
+ * Computed directly — NOT midnight + minutes, which is off by an hour on DST-change days.
+ */
+export function zonedDateTime(y: number, m: number, d: number, minuteOfDay: number, tz: string): Date {
+  const guess = Date.UTC(y, m - 1, d, 0, minuteOfDay);
   let t = guess - offsetMs(new Date(guess), tz);
   t = guess - offsetMs(new Date(t), tz); // second pass settles DST transitions
   return new Date(t);

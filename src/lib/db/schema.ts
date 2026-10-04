@@ -484,3 +484,233 @@ export const importBatches = app.table(
   },
   (t) => [index("import_batches_company_idx").on(t.companyId)],
 );
+
+/* =====================================================================================
+ * Stage 3 — background jobs, messaging, inbox, opt-outs, team notifications.
+ * ===================================================================================== */
+
+/**
+ * Durable background work. A job is written in the same transaction as the event that
+ * causes it. `idempotency_key` makes enqueueing the same work twice harmless.
+ */
+export const jobs = app.table(
+  "jobs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Null only for platform-wide maintenance jobs. */
+    companyId: uuid("company_id").references(() => companies.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull().default({}),
+    idempotencyKey: text("idempotency_key").notNull(),
+    runAt: timestamp("run_at", { withTimezone: true }).notNull().defaultNow(),
+    status: text("status").notNull().default("queued"), // queued | running | succeeded | failed | dead | cancelled
+    attempts: integer("attempts").notNull().default(0),
+    maxAttempts: integer("max_attempts").notNull().default(5),
+    lockedUntil: timestamp("locked_until", { withTimezone: true }),
+    lastError: text("last_error"),
+    result: text("result"),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("jobs_idempotency_key").on(t.idempotencyKey),
+    index("jobs_due_idx").on(t.status, t.runAt),
+    index("jobs_company_idx").on(t.companyId, t.status),
+  ],
+);
+
+/** Per-company messaging configuration (owner-editable unless noted). */
+export const messagingSettings = app.table("messaging_settings", {
+  companyId: uuid("company_id").primaryKey().references(() => companies.id, { onDelete: "cascade" }),
+  ackEnabled: boolean("ack_enabled").notNull().default(true),
+  /** Local minutes after midnight. Default 8:00–21:00. */
+  windowStartMinute: integer("window_start_minute").notNull().default(480),
+  windowEndMinute: integer("window_end_minute").notNull().default(1260),
+  /** Days allowed, 0 = Sunday … 6 = Saturday. */
+  windowDays: jsonb("window_days").$type<number[]>().notNull().default([0, 1, 2, 3, 4, 5, 6]),
+  /** Who is told about new leads/replies. Empty = the lead's assignee, else every active owner. */
+  notifyUserIds: jsonb("notify_user_ids").$type<string[]>().notNull().default([]),
+  /** Emergency stop for ALL automatic messages of this company. */
+  automationPaused: boolean("automation_paused").notNull().default(false),
+  automationPausedReason: text("automation_paused_reason"),
+  automationPausedAt: timestamp("automation_paused_at", { withTimezone: true }),
+  ...timestamps,
+});
+
+/** Versioned message templates. Edits create a new version; sent messages record the version used. */
+export const messageTemplates = app.table(
+  "message_templates",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    key: text("key").notNull(), // ack_sms | ack_email
+    version: integer("version").notNull(),
+    subject: text("subject"),
+    body: text("body").notNull(),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("message_templates_version_key").on(t.companyId, t.key, t.version)],
+);
+
+/**
+ * The company's sending identities, configured by Bluewater (Bluewater-managed senders, D-06).
+ * Secrets are encrypted and never sent to browsers. Live sending requires status = verified.
+ */
+export const companySenders = app.table(
+  "company_senders",
+  {
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    channel: text("channel").notNull(), // sms | email
+    status: text("status").notNull().default("not_configured"), // not_configured | pending_verification | verified | disabled
+    // SMS (Twilio subaccount per client)
+    twilioAccountSid: text("twilio_account_sid"),
+    twilioAuthTokenEnc: text("twilio_auth_token_enc"),
+    messagingServiceSid: text("messaging_service_sid"),
+    fromNumber: text("from_number"),
+    // Email (Postmark server per client)
+    postmarkServerTokenEnc: text("postmark_server_token_enc"),
+    fromEmail: text("from_email"),
+    fromName: text("from_name"),
+    replyTo: text("reply_to"),
+    /** SHA-256 of the secret path segment used for this company's Postmark webhooks. */
+    webhookKeyHash: text("webhook_key_hash"),
+    notes: text("notes"),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("company_senders_key").on(t.companyId, t.channel),
+    uniqueIndex("company_senders_twilio_key").on(t.twilioAccountSid).where(sql`${t.twilioAccountSid} is not null`),
+    uniqueIndex("company_senders_webhook_key").on(t.webhookKeyHash).where(sql`${t.webhookKeyHash} is not null`),
+  ],
+);
+
+/** One conversation thread per contact. */
+export const conversations = app.table(
+  "conversations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    contactId: uuid("contact_id").notNull(),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
+    lastInboundAt: timestamp("last_inbound_at", { withTimezone: true }),
+    lastHumanOutboundAt: timestamp("last_human_outbound_at", { withTimezone: true }),
+    /** True when the contact wrote and nobody on the team has answered or marked it read. */
+    needsReply: boolean("needs_reply").notNull().default(false),
+    lastReadAt: timestamp("last_read_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    unique("conversations_company_id_key").on(t.companyId, t.id),
+    uniqueIndex("conversations_contact_key").on(t.companyId, t.contactId),
+    foreignKey({ columns: [t.companyId, t.contactId], foreignColumns: [contacts.companyId, contacts.id], name: "conversations_contact_fk" }).onDelete("cascade"),
+    index("conversations_recent_idx").on(t.companyId, t.lastMessageAt),
+  ],
+);
+
+export const messages = app.table(
+  "messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    conversationId: uuid("conversation_id").notNull(),
+    contactId: uuid("contact_id").notNull(),
+    inquiryId: uuid("inquiry_id"),
+    direction: text("direction").notNull(), // outbound | inbound
+    channel: text("channel").notNull(), // sms | email
+    kind: text("kind").notNull(), // acknowledgment | manual | inbound | auto_reply
+    /**
+     * outbound: queued → sending → submitted → delivered | failed | unknown (uncertain; needs review) | skipped
+     * inbound: received
+     */
+    status: text("status").notNull(),
+    statusReason: text("status_reason"),
+    toAddress: text("to_address").notNull(),
+    fromAddress: text("from_address"),
+    subject: text("subject"),
+    body: text("body").notNull(),
+    transport: text("transport").notNull(), // simulated | twilio | postmark
+    providerMessageId: text("provider_message_id"),
+    errorCode: text("error_code"),
+    segments: integer("segments"),
+    idempotencyKey: text("idempotency_key"),
+    templateKey: text("template_key"),
+    templateVersion: integer("template_version"),
+    sentByUserId: uuid("sent_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    sendingStartedAt: timestamp("sending_started_at", { withTimezone: true }),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+    failedAt: timestamp("failed_at", { withTimezone: true }),
+    statusUpdatedAt: timestamp("status_updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    foreignKey({ columns: [t.companyId, t.conversationId], foreignColumns: [conversations.companyId, conversations.id], name: "messages_conversation_fk" }).onDelete("cascade"),
+    foreignKey({ columns: [t.companyId, t.contactId], foreignColumns: [contacts.companyId, contacts.id], name: "messages_contact_fk" }).onDelete("cascade"),
+    uniqueIndex("messages_idempotency_key").on(t.companyId, t.idempotencyKey).where(sql`${t.idempotencyKey} is not null`),
+    uniqueIndex("messages_provider_key").on(t.transport, t.providerMessageId).where(sql`${t.providerMessageId} is not null`),
+    index("messages_conversation_idx").on(t.conversationId, t.createdAt),
+    index("messages_company_status_idx").on(t.companyId, t.status, t.createdAt),
+    index("messages_inquiry_idx").on(t.inquiryId),
+  ],
+);
+
+/** Every provider status/delivery report as received (append-only). */
+export const messageStatusEvents = app.table(
+  "message_status_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    messageId: uuid("message_id").notNull().references(() => messages.id, { onDelete: "cascade" }),
+    status: text("status").notNull(),
+    providerStatus: text("provider_status"),
+    errorCode: text("error_code"),
+    applied: boolean("applied").notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }),
+    receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("message_status_events_message_idx").on(t.messageId)],
+);
+
+/** Addresses that must not receive messages from this company (opt-outs, bounces, complaints). */
+export const suppressions = app.table(
+  "suppressions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    channel: text("channel").notNull(), // sms | email
+    /** E.164 phone or lower-case email. */
+    address: text("address").notNull(),
+    reason: text("reason").notNull(), // opt_out_keyword | unsubscribe_link | hard_bounce | spam_complaint | manual
+    detail: text("detail"),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    liftedAt: timestamp("lifted_at", { withTimezone: true }),
+    liftedReason: text("lifted_reason"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("suppressions_active_key").on(t.companyId, t.channel, t.address).where(sql`${t.liftedAt} is null`),
+  ],
+);
+
+/** Alerts to team members (new lead, reply, failed acknowledgment). */
+export const notifications = app.table(
+  "notifications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(), // new_lead | reply | ack_problem
+    inquiryId: uuid("inquiry_id"),
+    conversationId: uuid("conversation_id"),
+    title: text("title").notNull(),
+    emailStatus: text("email_status").notNull(), // sent | failed | skipped
+    readAt: timestamp("read_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("notifications_once_key").on(t.companyId, t.userId, t.kind, t.inquiryId, t.conversationId),
+    index("notifications_user_idx").on(t.userId, t.readAt),
+  ],
+);

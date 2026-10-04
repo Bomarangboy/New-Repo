@@ -8,12 +8,17 @@ import { listUserCompanies } from "@/lib/authz/resolve";
 import { PACKAGE_LABELS } from "@/lib/authz/entitlements";
 import { visibleNav } from "@/lib/nav";
 import { switchCompanyAction } from "./actions";
+import { roleCan } from "@/lib/authz/permissions";
+import { needsReplyCount } from "@/server/messaging/inbox";
+import { isAutomationPaused } from "@/server/messaging/settings";
 
 export default async function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   const ctx = await pageContext("workspace.view");
   const { user } = await requireSession();
   const companies = await listUserCompanies(user.id);
-  const nav = visibleNav(ctx.role, ctx.package).map(({ href, label, icon }) => ({ href, label, icon }));
+  const automationPaused = await isAutomationPaused(ctx);
+  const waiting = roleCan(ctx.role, "conversation.view") ? await needsReplyCount(ctx) : 0;
+  const nav = visibleNav(ctx.role, ctx.package).map(({ href, label, icon }) => ({ href, label, icon, badge: href === "/app/conversations" ? waiting : undefined }));
 
   const switcher = (
     <details className="group relative mx-1">
@@ -42,6 +47,9 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
         <div className="flex items-center justify-center gap-2 bg-violet-700 px-4 py-1.5 text-xs font-semibold text-white">
           <Eye className="size-3.5" /> Bluewater support session ({ctx.role === "support_read" ? "view only" : "can edit"}) — recorded in this company&apos;s activity log.
         </div>
+      )}
+      {automationPaused && (
+        <div className="bg-red-600 px-4 py-1.5 text-center text-xs font-semibold text-white">All automatic messages are stopped for this business. Turn them back on under Automations.</div>
       )}
       {ctx.policy.login === "read_only" && !ctx.supportGrantId && (
         <div className="bg-amber-100 px-4 py-1.5 text-center text-xs font-semibold text-amber-900">

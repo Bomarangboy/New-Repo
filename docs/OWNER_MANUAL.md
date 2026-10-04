@@ -22,8 +22,13 @@ view‑only unless you choose otherwise, and the client sees it in their own act
    submit a test inquiry; the form shows "Receiving leads" once one arrives.
 6. Optional: import past leads (**Leads → Import**, CSV from Excel/Google Sheets). Imported leads never get
    automatic messages.
-7. _(coming)_ Senders, templates, booking; the controlled test.
-8. Change status to **Active** when the test passes. Leads that arrived before activation are kept but will
+7. **Senders** (you, on the company's admin page): enter the client's Twilio subaccount and/or Postmark
+   stream. Tokens are stored encrypted and never shown again. Set status to *Verified* only once the number's
+   A2P registration is approved and the email domain is verified. Copy the Postmark webhook address shown
+   once into Postmark. Until live sending is approved, everything stays simulated.
+8. The owner reviews **Automations**: acknowledgment wording, sending hours and who gets alerts.
+9. _(coming)_ Booking; the controlled test.
+10. Change status to **Active** when the test passes. Leads that arrived before activation are kept but will
    never be messaged automatically.
 
 ## Leads (what clients see)
@@ -33,6 +38,28 @@ view‑only unless you choose otherwise, and the client sees it in their own act
 - If the same person asks again, it's a new inquiry linked to the same contact ("repeat inquiry").
 - Owners can **export** all leads to a spreadsheet (recorded in the activity log).
 - How every number on the Overview is calculated is explained on the **Help** page (and `docs/METRICS.md`).
+
+## Messages and the inbox (Stage 3)
+- **Automatic acknowledgment:** when a website lead arrives on an Active account, Bluewater thanks them within
+  about a minute — by text if they gave text permission, otherwise by email. It is skipped (and the team is
+  told why) if there's no permission, they opted out, someone already contacted them, or it's outside the
+  sending hours for more than a day.
+- **Conversations** shows every thread. A red count means people replied and are waiting. When someone
+  replies, automatic messages to that person stop and the assigned person (or the owners) gets an email.
+- Replying: type in the box on the conversation and press Send. Texts only go to people who gave permission
+  and haven't opted out.
+- **Opt‑outs:** "STOP" (or "stop texting me", "unsubscribe"…) blocks texts to that number immediately;
+  "START" re‑allows. Email unsubscribe links work the same way. If someone asks by phone, use **Record
+  opt‑out** on the conversation.
+- **Emergency stop:** Automations → *Stop all automatic messages* (owners). Anything waiting is cancelled,
+  not delayed. Manual replies still work. Turn it back on from the same page.
+- Every message says **Simulated** until real sending is switched on — they were not actually delivered.
+
+## Health page (administrators)
+`/admin/health` shows whether sending is simulated or live, when the scheduler last ran (it should run every
+minute once deployed; older than 5 minutes is flagged), jobs that failed (retry or cancel them) and messages with an **unknown** result.
+An unknown message *may* have reached the person: check the provider's log (Twilio/Postmark) and then mark it
+delivered or failed. Bluewater never re-sends these automatically, to avoid double-texting someone.
 
 ## Cancellations
 On the company's admin page, **Record a cancellation request** with the end date and reason. The client keeps
@@ -64,4 +91,4 @@ administrator account for a trusted person to avoid this.
 Give the new developer access to the GitHub repository and (as members, not owners) to Supabase and Vercel.
 Point them to `README.md`, `CLAUDE.md` and `docs/`. Remove their access when the work ends.
 
-_(coming)_ Delivery verification · emergency pause · outages · restoring backups · capacity · billing.
+_(coming)_ Delivery verification · outages · restoring backups · capacity · billing.

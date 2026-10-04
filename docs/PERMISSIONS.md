@@ -27,6 +27,8 @@ a Bluewater administrator under a time‑limited, reason‑required support gran
 | `sequence.view` | ✅ | ✅ | ✅ | ✅ |
 | `sequence.manage` | ✅ | — | — | ✅ |
 | `sequence.pause_contact` | ✅ | ✅ | — | ✅ |
+| `contact.opt_out` | ✅ | ✅ | — | ✅ |
+| `automation.emergency_pause` | ✅ | — | — | ✅ |
 | `appointment.view` | ✅ | ✅ | ✅ | ✅ |
 | `appointment.manage` | ✅ | ✅ | — | — |
 | `integration.view` | ✅ | — | ✅ | ✅ |

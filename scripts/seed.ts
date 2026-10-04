@@ -30,10 +30,12 @@ async function main() {
   if (!["development", "test"].includes(process.env.APP_ENV ?? "") || process.env.AUTH_PROVIDER !== "local") {
     throw new Error("Refusing to seed: this script only runs with APP_ENV=development or test and AUTH_PROVIDER=local.");
   }
-  const adminAuth = await ensureIdentity("admin@bluewater.test");
-  await withSystemDb("dev seed", async (tx) => {
-    await tx.insert(users).values({ authUserId: adminAuth, email: "admin@bluewater.test", fullName: "Bluewater Admin", isPlatformAdmin: true }).onConflictDoNothing();
-  });
+  for (const [email, name] of [["admin@bluewater.test", "Bluewater Admin"], ["ops@bluewater.test", "Bluewater Ops (second admin)"]] as const) {
+    const auth = await ensureIdentity(email);
+    await withSystemDb("dev seed", async (tx) => {
+      await tx.insert(users).values({ authUserId: auth, email, fullName: name, isPlatformAdmin: true }).onConflictDoNothing();
+    });
+  }
 
   for (const c of COMPANIES) {
     const ids: { role: "owner" | "employee"; auth: string; email: string; name: string }[] = [];

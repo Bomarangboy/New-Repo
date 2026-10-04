@@ -1,6 +1,6 @@
 # Sales Demo Environment
 
-**Status:** foundation (Stage 1) + sample dataset v1 (Stage 2). The full demo — sample dataset, prospect access, presentation
+**Status:** foundation (Stage 1) + sample dataset v1 (Stage 2) + simulated conversations (Stage 3). The full demo — sample dataset, prospect access, presentation
 controls, guided tour — is built alongside Stages 2–5. Nothing in the demo is evidence that a live
 integration works.
 
@@ -21,6 +21,15 @@ example data (example.com addresses, 555-01xx numbers), goes through the same co
 deterministic (same seed → same data). A test proves the dashboard totals equal the records. Sample leads are
 never eligible for automatic messages. Today it powers the development seed; the demo deployment uses it once
 prospect workspaces exist.
+
+## Simulated messaging (Stage 3)
+- Sample companies include simulated acknowledgments, replies, manual answers, one STOP and a few replies
+  awaiting an answer, so the inbox and dashboard have something to show. Every one is labeled "Simulated".
+- On any conversation, **Simulate a reply from this person** (available only where sending is simulated — never
+  for a real customer once live sending is on; the server checks this too) lets you show what happens when a lead answers, says STOP, etc. It goes through the same
+  code as a real incoming text.
+- The server forces the simulated transport for demo, test and development, and for demo company kinds
+  everywhere (tested); it is not a setting someone can flip in the interface.
 
 ## Planned design
 - Hosted separately at `demo.yourdomain.com` with its **own Supabase project and Vercel project** — no

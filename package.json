@@ -2,7 +2,7 @@
   "name": "bluewater-collective",
   "version": "0.1.0",
   "private": true,
-  "description": "Bluewater Collective — lead response, follow-up and reporting platform for multiple client businesses.",
+  "description": "Bluewater Collective \u2014 lead response, follow-up and reporting platform for multiple client businesses.",
   "engines": {
     "node": ">=20.12"
   },
@@ -20,7 +20,8 @@
     "db:seed": "tsx scripts/seed.ts",
     "db:reset-local": "tsx scripts/reset-local-db.ts",
     "admin:create": "tsx scripts/create-admin.ts",
-    "check": "npm run typecheck && npm run lint && npm run test"
+    "check": "npm run typecheck && npm run lint && npm run test",
+    "jobs:work": "tsx scripts/worker.ts"
   },
   "dependencies": {
     "@fontsource-variable/figtree": "^5.3.0",
@@ -36,6 +37,7 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "server-only": "^0.0.1",
+    "twilio": "^6.1.2",
     "zod": "^4.6.5"
   },
   "devDependencies": {

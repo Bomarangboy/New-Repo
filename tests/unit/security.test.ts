@@ -64,7 +64,8 @@ describe("configuration safety", () => {
   });
   it("demo can never enable live sending; dev cannot either", () => {
     expect(() => assertSafeCombination({ ...base, ...supa, AUTH_PROVIDER: "supabase", APP_ENV: "demo", LIVE_SENDING_ENABLED: true }, {})).toThrow(/demo/);
-    expect(() => assertSafeCombination({ ...base, LIVE_SENDING_ENABLED: true }, {})).toThrow(/development or test/);
+    expect(() => assertSafeCombination({ ...base, LIVE_SENDING_ENABLED: true }, {})).toThrow(/only be enabled in production/);
+    expect(() => assertSafeCombination({ ...base, ...supa, AUTH_PROVIDER: "supabase", APP_ENV: "staging", LIVE_SENDING_ENABLED: true }, {})).toThrow(/only be enabled in production/);
   });
   it("production requires a real system email transport and Supabase keys", () => {
     expect(() => assertSafeCombination({ ...base, AUTH_PROVIDER: "supabase", APP_ENV: "production" }, {})).toThrow(/Supabase/);

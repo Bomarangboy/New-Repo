@@ -7,6 +7,7 @@ import { accountPolicy } from "@/lib/authz/account-policy";
 import { UserError } from "@/lib/errors";
 import { cleanText, pickTracking } from "@/lib/contact-normalize";
 import { recordInquiry, type InquiryInput } from "@/server/crm/record-inquiry";
+import { enqueueNewLeadWork } from "@/server/messaging/acknowledgment";
 
 /**
  * Website form intake (documented in docs/INTAKE.md).
@@ -221,6 +222,8 @@ export async function processIntakeEvent(eventId: string): Promise<{ status: "pr
           companyId: e.companyId, source: "website_form", sourceLabel: source?.name ?? "Website form", intakeSourceId: e.intakeSourceId,
           automationOrigin: policy.intake === "process" ? "eligible" : "held", actorType: "system",
         });
+        // Acknowledgment + team alert are queued in the SAME transaction as the lead (no lead without its jobs).
+        await enqueueNewLeadWork(tx, e.companyId, res.inquiry.id, res.inquiry.automationOrigin);
         await tx.update(intakeEvents).set({ status: "processed", inquiryId: res.inquiry.id, processedAt: new Date(), error: null }).where(eq(intakeEvents.id, eventId));
         await tx.update(intakeSources).set({ lastReceivedAt: new Date() }).where(eq(intakeSources.id, e.intakeSourceId));
         return { status: "processed" as const };

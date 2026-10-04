@@ -15,7 +15,7 @@ const ICONS = {
 } as const;
 export type IconName = keyof typeof ICONS;
 
-export interface ShellNavItem { href: string; label: string; icon: IconName }
+export interface ShellNavItem { href: string; label: string; icon: IconName; badge?: number }
 
 function NavLinks({ items, onNavigate }: { items: ShellNavItem[]; onNavigate?: () => void }) {
   const path = usePathname();
@@ -36,6 +36,7 @@ function NavLinks({ items, onNavigate }: { items: ShellNavItem[]; onNavigate?: (
             }`}
           >
             <Icon className="size-5 shrink-0" /> {item.label}
+            {item.badge ? <span className={`ml-auto rounded-full px-2 py-0.5 text-xs font-bold ${active ? "bg-white text-brand-600" : "bg-brand-500 text-white"}`} aria-label={`${item.badge} waiting`}>{item.badge}</span> : null}
           </Link>
         );
       })}
