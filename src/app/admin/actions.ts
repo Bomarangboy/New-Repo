@@ -8,7 +8,7 @@ import { env } from "@/lib/env";
 import { userMessage } from "@/lib/user-message";
 import { PACKAGES, type PackageTier } from "@/lib/authz/entitlements";
 import type { LifecycleStatus } from "@/lib/authz/account-policy";
-import { changeLifecycle, changePackage, createCompany, endSupportAccess, LIFECYCLE, setSuspended, startSupportAccess } from "@/server/companies";
+import { changeLifecycle, changePackage, createCompany, endSupportAccess, LIFECYCLE, scheduleCancellation, setSuspended, startSupportAccess, withdrawCancellation } from "@/server/companies";
 import { inviteOwner } from "@/server/invitations";
 import type { FormState } from "@/components/forms";
 
@@ -99,4 +99,25 @@ export async function endSupportAction(fd: FormData): Promise<void> {
   await endSupportAccess(ctx, id, await requestId());
   (await cookies()).delete(COMPANY_COOKIE);
   redirect(`/admin/companies/${id}`);
+}
+
+export async function scheduleCancellationAction(_: FormState, fd: FormData): Promise<FormState> {
+  return run(async () => {
+    const ctx = await adminActionContext();
+    const id = String(fd.get("companyId"));
+    const raw = String(fd.get("effectiveDate") ?? "");
+    await scheduleCancellation(ctx, id, { effectiveDate: new Date(`${raw}T23:59:59Z`), reason: String(fd.get("reason") ?? "") }, await requestId());
+    revalidatePath(`/admin/companies/${id}`);
+    return "Cancellation scheduled. Service continues until the end date, then the account becomes Churned (records are kept).";
+  });
+}
+
+export async function withdrawCancellationAction(_: FormState, fd: FormData): Promise<FormState> {
+  return run(async () => {
+    const ctx = await adminActionContext();
+    const id = String(fd.get("companyId"));
+    await withdrawCancellation(ctx, id, await requestId());
+    revalidatePath(`/admin/companies/${id}`);
+    return "Cancellation withdrawn.";
+  });
 }

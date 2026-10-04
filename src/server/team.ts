@@ -1,8 +1,8 @@
 import { UserError } from "@/lib/errors";
-import { and, desc, eq, ne } from "drizzle-orm";
+import { and, desc, eq, isNull, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withCompanyDb, withSystemDb } from "@/lib/db/context";
-import { auditLog, companies, memberships, users } from "@/lib/db/schema";
+import { auditLog, companies, inquiries, inquiryEvents, memberships, tasks, users } from "@/lib/db/schema";
 import { audit } from "@/lib/audit";
 import { roleCan } from "@/lib/authz/permissions";
 import type { CompanyContext } from "@/lib/authz/context-types";
@@ -38,9 +38,17 @@ export async function removeMember(ctx: CompanyContext, userId: string, requestI
       .where(and(eq(memberships.companyId, ctx.companyId), eq(memberships.userId, userId), eq(memberships.status, "active"), ne(memberships.role, "owner")))
       .returning({ id: memberships.id });
     if (!res.length) throw new UserError("Team member not found.");
-    await audit(tx, { companyId: ctx.companyId, actorUserId: ctx.userId, actorType: actorType(ctx), action: "team.member_removed", targetType: "user", targetId: userId, requestId });
+    // Open work must not sit with someone who can no longer see it: unassign and record why.
+    const freed = await tx.update(inquiries).set({ assignedUserId: null })
+      .where(and(eq(inquiries.assignedUserId, userId), sql`${inquiries.stage} not in ('won','lost')`))
+      .returning({ id: inquiries.id });
+    for (const f of freed) {
+      await tx.insert(inquiryEvents).values({ companyId: ctx.companyId, inquiryId: f.id, type: "assigned", actorUserId: ctx.userId, actorType: actorType(ctx), details: { from: userId, to: null, reason: "member_removed" } });
+    }
+    const freedTasks = await tx.update(tasks).set({ assignedUserId: null })
+      .where(and(eq(tasks.assignedUserId, userId), isNull(tasks.completedAt))).returning({ id: tasks.id });
+    await audit(tx, { companyId: ctx.companyId, actorUserId: ctx.userId, actorType: actorType(ctx), action: "team.member_removed", targetType: "user", targetId: userId, details: { unassignedLeads: freed.length, unassignedTasks: freedTasks.length }, requestId });
   });
-  // Assignments/tasks reassignment is added in Stage 2 when those records exist.
 }
 
 /**

@@ -17,7 +17,10 @@ you finish a piece of work.
 - All database access goes through `src/lib/db/context.ts`:
   - `withCompanyDb(ctx, …)` — client workspace work; `ctx` must come from `pageContext()` / `actionContext()`.
   - `withPlatformDb(ctx, …)` — admin area only (`requirePlatformAdmin` / `adminActionContext`).
-  - `withSystemDb(purpose, …)` — sign‑in, webhooks, jobs. **Never** in `src/app/(workspace)/**` (a test enforces this).
+  - `withSystemCompanyDb(companyId, purpose, …)` — trusted server work for ONE already‑identified company
+    (website intake after the form key is verified, jobs). RLS still limits it to that company.
+  - `withSystemDb(purpose, …)` — sign‑in, lookups before a company is known. **Never** in `src/app/(workspace)/**`
+    (a test enforces this for both system doors).
 - Every new company‑owned table: `company_id NOT NULL`, RLS enabled **and forced**, a policy using
   `app.current_company_id()` / `app.unrestricted()`, and a cross‑company test in `tests/integration`.
   Add RLS in a hand‑written migration (`npx drizzle-kit generate --custom --name <name>`).
@@ -26,7 +29,11 @@ you finish a piece of work.
   `npx tsx scripts/gen-permissions-doc.ts` (a test fails if `docs/PERMISSIONS.md` is stale).
 - User‑facing errors: throw `UserError` for messages meant for people; everything else goes through
   `userMessage()`, which hides internals and logs a reference ID.
-- Append sensitive changes to the activity log with `audit()` inside the same transaction.
+- Append sensitive changes to the activity log with `audit()` inside the same transaction; lead changes also go
+  to `inquiry_events` (record history).
+- Leads enter only through `recordInquiry()` (`src/server/crm/record-inquiry.ts`) so duplicate detection,
+  history and messaging eligibility (`automation_origin`) are applied consistently. Imports/manual/sample = "none".
+- Child CRM tables reference parents by `(company_id, id)` composite foreign keys.
 
 ## Conventions
 - Next.js 16 App Router: `params`/`searchParams`/`cookies()` are async; middleware is `proxy.ts`.

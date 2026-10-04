@@ -1,7 +1,7 @@
 import { UserError } from "@/lib/errors";
 import { and, desc, eq, ilike, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
-import { withPlatformDb } from "@/lib/db/context";
+import { withPlatformDb, withSystemDb } from "@/lib/db/context";
 import { companies, lifecycleHistory, memberships, packageHistory, supportAccessGrants, users } from "@/lib/db/schema";
 import { audit } from "@/lib/audit";
 import { PACKAGES, type PackageTier } from "@/lib/authz/entitlements";
@@ -70,6 +70,7 @@ export async function listCompanies(ctx: PlatformContext, filter: { status?: Lif
       id: companies.id, name: companies.name, kind: companies.kind, package: companies.package,
       lifecycleStatus: companies.lifecycleStatus, billingStatus: companies.billingStatus, suspended: companies.suspended,
       serviceStartDate: companies.serviceStartDate, serviceEndsAt: companies.serviceEndsAt, createdAt: companies.createdAt,
+      cancellationRequestedAt: companies.cancellationRequestedAt,
       ownerEmail: owner.ownerEmail, ownerName: owner.ownerName,
     }).from(companies).leftJoin(owner, eq(owner.companyId, companies.id)).where(and(...conds)).orderBy(companies.name);
   });
@@ -183,5 +184,50 @@ export async function endSupportAccess(ctx: PlatformContext, companyId: string, 
     if (ended.length) {
       await audit(tx, { companyId, actorUserId: ctx.userId, actorType: "support", action: "support.access_ended", targetType: "support_grant", targetId: ended[0]!.id, requestId });
     }
+  });
+}
+
+/**
+ * Records a client's cancellation request. Service continues until `effectiveDate`;
+ * applyDueCancellations() then marks the company Churned (nothing is deleted).
+ */
+export async function scheduleCancellation(ctx: PlatformContext, companyId: string, input: { effectiveDate: Date; reason: string }, requestId?: string) {
+  const reason = input.reason.trim();
+  if (reason.length < 3) throw new UserError("Record the cancellation reason.");
+  if (Number.isNaN(input.effectiveDate.getTime())) throw new UserError("Choose the date service ends.");
+  return withPlatformDb(ctx, async (tx) => {
+    const [c] = await tx.select().from(companies).where(eq(companies.id, companyId)).for("update");
+    if (!c) throw new UserError("Company not found");
+    if (c.lifecycleStatus === "churned" || c.lifecycleStatus === "archived") throw new UserError("This company has already ended service.");
+    const [updated] = await tx.update(companies).set({ cancellationRequestedAt: new Date(), serviceEndsAt: input.effectiveDate, churnReason: reason })
+      .where(eq(companies.id, companyId)).returning();
+    await audit(tx, { companyId, actorUserId: ctx.userId, actorType: "platform_admin", action: "company.cancellation_scheduled", targetType: "company", targetId: companyId, details: { effectiveDate: input.effectiveDate.toISOString(), reason }, requestId });
+    return updated!;
+  });
+}
+
+export async function withdrawCancellation(ctx: PlatformContext, companyId: string, requestId?: string) {
+  return withPlatformDb(ctx, async (tx) => {
+    const [updated] = await tx.update(companies).set({ cancellationRequestedAt: null, serviceEndsAt: null, churnReason: null })
+      .where(and(eq(companies.id, companyId), sql`${companies.lifecycleStatus} not in ('churned','archived')`)).returning();
+    if (!updated) throw new UserError("There's no pending cancellation to withdraw.");
+    await audit(tx, { companyId, actorUserId: ctx.userId, actorType: "platform_admin", action: "company.cancellation_withdrawn", targetType: "company", targetId: companyId, requestId });
+    return updated;
+  });
+}
+
+/** Marks companies Churned once their scheduled service end has passed. Run by the scheduler (Stage 3). */
+export async function applyDueCancellations(now = new Date()): Promise<number> {
+  return withSystemDb("lifecycle: apply scheduled cancellations", async (tx) => {
+    const due = await tx.select().from(companies).where(and(
+      sql`${companies.cancellationRequestedAt} is not null`, sql`${companies.serviceEndsAt} <= ${now.toISOString()}`,
+      sql`${companies.lifecycleStatus} in ('onboarding','active','paused')`,
+    )).for("update");
+    for (const c of due) {
+      await tx.update(companies).set({ lifecycleStatus: "churned" }).where(eq(companies.id, c.id));
+      await tx.insert(lifecycleHistory).values({ companyId: c.id, fromStatus: c.lifecycleStatus, toStatus: "churned", reason: `Scheduled cancellation: ${c.churnReason ?? ""}` });
+      await audit(tx, { companyId: c.id, actorUserId: null, actorType: "system", action: "company.lifecycle_changed", targetType: "company", targetId: c.id, details: { from: c.lifecycleStatus, to: "churned", reason: "scheduled cancellation" } });
+    }
+    return due.length;
   });
 }

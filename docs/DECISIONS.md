@@ -28,6 +28,10 @@ Status key: **Decided** (owner approved) · **Assumed** (reasonable default; rev
 | D‑16 | Billing | **Assumed** — manual invoicing first | — |
 | D‑17 | Monitoring & independent alerts | **Assumed** — Sentry + external uptime monitor | Launch |
 | D‑18 | Legal review | **Open** — attorney review of consent/messaging | Live sending |
+| D‑19 | Pipeline unit | **Assumed** — pipeline stage lives on each inquiry | — |
+| D‑20 | Messaging eligibility of stored leads | **Assumed** — only live submissions on active accounts | — |
+| D‑21 | Duplicate handling | **Assumed** — match on email or phone; never overwrite | — |
+| D‑22 | Intake abuse controls | **Assumed** — allowed websites, spam trap, 30/min, optional signing | — |
 
 ---
 
@@ -158,3 +162,24 @@ Each extra Supabase project adds compute cost (one Micro is covered by the inclu
 - Items requiring an attorney: consent language on client web forms and lead forms; TCPA/state texting
   rules and quiet hours; CAN‑SPAM; data retention/deletion terms; sender ownership/porting terms; terms of
   service and privacy policy; Meta/Google platform terms for storing lead data.
+
+### D‑19 Pipeline unit — Assumed (Stage 2)
+- Each **inquiry** has its own stage, assignee and sale value; the **contact** holds identity. A returning customer's
+  new request is a new pipeline item, so lead‑to‑sale reporting stays per request. Alternative: one stage per contact
+  (simpler, but loses repeat‑business history). Reversible with a data migration.
+
+### D‑20 Which stored leads may receive automatic messages — Assumed (Stage 2)
+- Only inquiries that arrived live through a connected source while the account was **active** are "eligible".
+  Leads stored during onboarding/pause/suspension are "held" and are never messaged later (avoids sending stale
+  acknowledgments at activation). Manual, imported and sample leads are "none"; Stage 3 adds an explicit,
+  logged enrollment action with eligibility checks if you want to message one of them.
+
+### D‑21 Duplicate contacts — Assumed (Stage 2)
+- A submission matches an existing contact by normalized email or US phone. Existing details are never overwritten
+  by a new submission (blanks are filled; differences are noted in history). If the email and phone match two
+  different contacts, the inquiry attaches to the email match and is flagged. A merge tool is deferred.
+
+### D‑22 Website intake abuse controls — Assumed (Stage 2)
+- Per‑form allowed‑websites list (browser submissions), hidden spam‑trap field, 30 submissions/minute/form,
+  optional HMAC signing for server‑to‑server use. CAPTCHA is not added by default (hurts conversion); revisit if
+  spam appears. Rate‑limit counts live in the database (no extra service).

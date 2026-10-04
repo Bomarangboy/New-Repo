@@ -46,3 +46,16 @@ export async function withUserDb<T>(userId: string, fn: (tx: Tx) => Promise<T>):
     return fn(tx);
   });
 }
+
+/**
+ * Trusted server process acting for ONE known company without a signed-in user
+ * (e.g. a website form submission after its source key was verified, or a job).
+ * Row Level Security still limits every query to that company.
+ */
+export async function withSystemCompanyDb<T>(companyId: string, purpose: string, fn: (tx: Tx) => Promise<T>): Promise<T> {
+  if (!companyId || !purpose) throw new Error("withSystemCompanyDb requires a company and a purpose");
+  return getDb().transaction(async (tx) => {
+    await setContext(tx, { companyId });
+    return fn(tx);
+  });
+}

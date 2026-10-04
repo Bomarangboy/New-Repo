@@ -25,6 +25,8 @@ export function accountPolicy(c: {
   suspended: boolean;
   kind: CompanyKind;
   demoExpiresAt?: Date | null;
+  cancellationRequestedAt?: Date | null;
+  serviceEndsAt?: Date | null;
 }, now = new Date()): AccountPolicy {
   const isDemo = c.kind === "demo_prospect" || c.kind === "demo_template";
   const liveDeliveryAllowed = c.kind === "customer";
@@ -33,8 +35,12 @@ export function accountPolicy(c: {
     return { login: "none", intake: "reject", automatedSending: false, manualSending: false, sync: false, liveDeliveryAllowed: false };
   }
 
+  // A scheduled cancellation takes effect at its end date even before the scheduler records it.
+  const ended = Boolean(c.cancellationRequestedAt && c.serviceEndsAt && c.serviceEndsAt <= now);
+  const status: LifecycleStatus = ended && (c.lifecycleStatus === "onboarding" || c.lifecycleStatus === "active" || c.lifecycleStatus === "paused") ? "churned" : c.lifecycleStatus;
+
   let p: AccountPolicy;
-  switch (c.lifecycleStatus) {
+  switch (status) {
     case "onboarding":
       // Leads are stored so setup can be tested; automation waits for activation.
       p = { login: "full", intake: "store_only", automatedSending: false, manualSending: false, sync: true, liveDeliveryAllowed };

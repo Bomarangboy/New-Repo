@@ -110,7 +110,7 @@ describe("code guardrails", () => {
     const dir = path.resolve(__dirname, "../../src/app/(workspace)");
     for (const f of files(dir)) {
       const src = readFileSync(f, "utf8");
-      expect(src, f).not.toMatch(/withSystemDb|withPlatformDb|getDb\(/);
+      expect(src, f).not.toMatch(/withSystemDb|withSystemCompanyDb|withPlatformDb|getDb\(/);
     }
   });
   it("no secrets are exposed through NEXT_PUBLIC_ variables", () => {
@@ -136,5 +136,13 @@ import { renderPermissionsDoc } from "../../scripts/gen-permissions-doc";
 describe("documentation matches enforcement", () => {
   it("docs/PERMISSIONS.md is up to date (run: npx tsx scripts/gen-permissions-doc.ts)", () => {
     expect(readDoc(path.resolve(__dirname, "../../docs/PERMISSIONS.md"), "utf8")).toBe(renderPermissionsDoc());
+  });
+});
+
+describe("scheduled cancellation in account policy", () => {
+  it("takes effect at the end date even before the scheduler runs", () => {
+    const base = { lifecycleStatus: "active" as const, suspended: false, kind: "customer" as const, cancellationRequestedAt: new Date("2026-01-01") };
+    expect(accountPolicy({ ...base, serviceEndsAt: new Date("2026-02-01") }, new Date("2026-01-15")).intake).toBe("process");
+    expect(accountPolicy({ ...base, serviceEndsAt: new Date("2026-02-01") }, new Date("2026-02-02"))).toMatchObject({ login: "read_only", intake: "reject", automatedSending: false });
   });
 });

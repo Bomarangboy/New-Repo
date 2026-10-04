@@ -72,8 +72,11 @@ the sales demo.
 single‑use, 7‑day) · `package_history` · `lifecycle_history` · `audit_log` · `support_access_grants` ·
 local‑provider tables (`local_credentials`, `local_sessions`, `password_reset_tokens`) · `dev_outbox`.
 
-Stage 2 adds contacts, inquiries (repeat inquiries kept distinct), notes, tasks, sources/tracking, intake
-events with idempotency keys. Stage 3 adds conversations, messages (queued/submitted/delivered/failed/unknown),
+Stage 2 (built): `contacts` (unique per company on normalized email / E.164 phone) · `inquiries` (stage,
+assignee, sale value, tracking, external IDs, automation eligibility; child of contact via (company_id, id)) ·
+`consent_records` (append-only evidence) · `notes` · `tasks` · `inquiry_events` (append-only history) ·
+`intake_sources` (website form connections) · `intake_events` (every submission, unique per idempotency key) ·
+`import_batches` (previewed → committed once). See INTAKE.md and METRICS.md. Stage 3 adds conversations, messages (queued/submitted/delivered/failed/unknown),
 templates, suppressions, consent records, jobs.
 
 ## Background processing design (Stage 3, decided in D‑07)
@@ -89,12 +92,13 @@ templates, suppressions, consent records, jobs.
   provider before any retry.
 - Fairness: per‑company concurrency caps so one client can't monopolize processing.
 
-## Lead intake (Stage 2)
+## Lead intake (Stage 2, built)
 
-`POST /api/intake/<company-intake-key>` for website forms: validates input, records the raw event and an
-idempotency key **before** acknowledging receipt (never ack what isn't durably stored), deduplicates the
-contact, keeps each inquiry as a separate record, and preserves UTM/click identifiers. Imports/backfills
-never trigger messaging automatically.
+`POST /api/intake/<form-key>`: identify form → verify signature or allowed website → rate limit → account status
+(410 when closed) → duplicate check under a per-form lock → **store the raw submission and commit** → turn it into
+a contact + inquiry in a second transaction (201), or report problems (422), or leave it stored for retry (202).
+A fourth database door, `withSystemCompanyDb(companyId, purpose)`, is used for this: trusted server code acting
+for one already-identified company, still limited to that company's rows by RLS. Details: INTAKE.md.
 
 ## External CRM connector contract (Stage 6; no connector live yet)
 
@@ -122,6 +126,6 @@ forced to simulated mode in code (not just hidden in the interface).
 ## Known limitations (current)
 
 - Supabase Auth path is not yet verified against a live project (sandbox could not run Supabase locally).
-- Leads, messaging, automations, booking, reporting and the demo dataset are not built yet (Stages 2–7).
+- Messaging, automations, booking, ad reporting and demo prospect access are not built yet (Stages 3–7).
 - No rate limiting on sign‑in beyond account lockout (local) / Supabase's built‑in limits; Stage 7 adds
   edge rate limiting for public endpoints.

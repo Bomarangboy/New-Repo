@@ -17,8 +17,27 @@ view‑only unless you choose otherwise, and the client sees it in their own act
 2. On the company page, **Invite the owner** with their email. They receive a link (valid 7 days, works once).
 3. The owner creates their password, then invites their own employees under **Settings → Team**.
 4. The owner chooses **built‑in CRM** under Settings. (External CRMs show as "Not available yet".)
-5. _(coming)_ Connect lead sources, senders, templates, booking; run the controlled test.
-6. Change status to **Active** when the test passes.
+5. Connect the website form: the owner (or you in a support session with edit access) opens **Connected
+   Accounts → Connect a website form**, then sends the setup instructions to their web designer. Ask them to
+   submit a test inquiry; the form shows "Receiving leads" once one arrives.
+6. Optional: import past leads (**Leads → Import**, CSV from Excel/Google Sheets). Imported leads never get
+   automatic messages.
+7. _(coming)_ Senders, templates, booking; the controlled test.
+8. Change status to **Active** when the test passes. Leads that arrived before activation are kept but will
+   never be messaged automatically.
+
+## Leads (what clients see)
+- **Leads** lists every inquiry; search by name, email, phone or service; filter by stage, source or person.
+- Each lead has its stage (New → Contacted → Booked → Won/Lost), who it's assigned to, notes, tasks (Package 2),
+  the sale amount once won, permission evidence, and a full history of changes.
+- If the same person asks again, it's a new inquiry linked to the same contact ("repeat inquiry").
+- Owners can **export** all leads to a spreadsheet (recorded in the activity log).
+- How every number on the Overview is calculated is explained on the **Help** page (and `docs/METRICS.md`).
+
+## Cancellations
+On the company's admin page, **Record a cancellation request** with the end date and reason. The client keeps
+full service until that date; from then on the account is read-only (they can still export), new website
+submissions are refused with a clear error, and nothing is deleted.
 
 ## Users and security
 - Owners can invite and remove employees. Removing someone ends their access immediately.

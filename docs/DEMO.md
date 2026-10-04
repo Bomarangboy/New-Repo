@@ -1,6 +1,6 @@
 # Sales Demo Environment
 
-**Status:** foundation only (Stage 1). The full demo — sample dataset, prospect access, presentation
+**Status:** foundation (Stage 1) + sample dataset v1 (Stage 2). The full demo — sample dataset, prospect access, presentation
 controls, guided tour — is built alongside Stages 2–5. Nothing in the demo is evidence that a live
 integration works.
 
@@ -12,6 +12,15 @@ integration works.
   Demo companies can never use real providers (`liveDeliveryAllowed=false`) and are locked automatically when
   `demo_expires_at` passes (tested).
 - Every page shows the banner **"Demo — Sample Data. Messages, ad accounts, CRM and bookings are simulated."**
+
+## Sample dataset v1 (Stage 2)
+`src/server/demo/dataset.ts` generates ~130 fictional inquiries over 90 days (website form, sample
+Facebook/Instagram and Google lead-form sources clearly labeled "(sample)", manual entries), realistic
+stage progression, sale values, notes, tasks, consent evidence and genuine repeat customers. It uses reserved
+example data (example.com addresses, 555-01xx numbers), goes through the same code as real leads, and is
+deterministic (same seed → same data). A test proves the dashboard totals equal the records. Sample leads are
+never eligible for automatic messages. Today it powers the development seed; the demo deployment uses it once
+prospect workspaces exist.
 
 ## Planned design
 - Hosted separately at `demo.yourdomain.com` with its **own Supabase project and Vercel project** — no

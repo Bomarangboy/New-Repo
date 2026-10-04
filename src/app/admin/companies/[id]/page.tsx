@@ -8,7 +8,7 @@ import { PACKAGE_LABELS, PACKAGES } from "@/lib/authz/entitlements";
 import { accountPolicy } from "@/lib/authz/account-policy";
 import { formatInZone } from "@/lib/timezones";
 import { canTransition, getCompanyForAdmin, LIFECYCLE, SUPPORT_MAX_MINUTES } from "@/server/companies";
-import { changeLifecycleAction, changePackageAction, endSupportAction, inviteOwnerAction, startSupportAction, suspendAction } from "../../actions";
+import { changeLifecycleAction, changePackageAction, endSupportAction, inviteOwnerAction, scheduleCancellationAction, startSupportAction, suspendAction, withdrawCancellationAction } from "../../actions";
 
 export const metadata = { title: "Company" };
 
@@ -83,6 +83,25 @@ export default async function CompanyAdminPage({ params, searchParams }: { param
               <SubmitButton variant="secondary">Change status</SubmitButton>
             </ActionForm>
           ) : <p className="text-sm text-muted">No status changes available.</p>}
+          <hr className="my-5 border-line" />
+          {c.cancellationRequestedAt && c.lifecycleStatus !== "churned" && c.lifecycleStatus !== "archived" ? (
+            <ActionForm action={withdrawCancellationAction}>
+              <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">Cancellation requested {formatInZone(c.cancellationRequestedAt, tz, { dateStyle: "medium" })}; service ends {formatInZone(c.serviceEndsAt, "UTC", { dateStyle: "medium" })}. Reason: {c.churnReason}</p>
+              <input type="hidden" name="companyId" value={c.id} />
+              <SubmitButton variant="secondary">Withdraw cancellation</SubmitButton>
+            </ActionForm>
+          ) : c.lifecycleStatus !== "churned" && c.lifecycleStatus !== "archived" ? (
+            <details>
+              <summary className="cursor-pointer text-sm font-medium text-brand-600">Record a cancellation request</summary>
+              <ActionForm action={scheduleCancellationAction} className="mt-3 space-y-3">
+                <input type="hidden" name="companyId" value={c.id} />
+                <Field label="Service ends on" name="effectiveDate" type="date" required />
+                <Field label="Reason" name="reason" required />
+                <p className="text-xs text-muted">Service continues until the end date. Then the account becomes Churned automatically: read-only, nothing sent, records kept.</p>
+                <SubmitButton variant="secondary">Schedule cancellation</SubmitButton>
+              </ActionForm>
+            </details>
+          ) : null}
           <hr className="my-5 border-line" />
           <ActionForm action={suspendAction}>
             <input type="hidden" name="companyId" value={c.id} />

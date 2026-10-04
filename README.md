@@ -4,9 +4,9 @@ A web platform that helps client businesses respond to every advertising lead, f
 see what their advertising produces. Each client company gets its own secure workspace; Bluewater
 administrators manage all companies from a separate area.
 
-> **Status:** Stage 1 of 7 complete — accounts, security, company isolation, permissions, administrator
-> company management. Lead capture, messaging, booking and reporting are next. Nothing is deployed yet and no
-> real messages can be sent. See [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md).
+> **Status:** Stages 1–2 of 7 complete — accounts, security, company isolation, permissions, administrator
+> company management, built-in CRM, website form capture, CSV import/export and a dashboard from real data.
+> Messaging, booking and ad reporting are next. Nothing is deployed yet and no real messages can be sent. See [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md).
 
 ## Documents
 
@@ -18,6 +18,8 @@ administrators manage all companies from a separate area.
 | [docs/REQUIREMENTS_MATRIX.md](docs/REQUIREMENTS_MATRIX.md) | Every requirement → code → test → status |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How it's built and why it's secure |
 | [docs/PERMISSIONS.md](docs/PERMISSIONS.md) | Who can do what, per role, package and account status |
+| [docs/METRICS.md](docs/METRICS.md) | How every dashboard number is calculated |
+| [docs/INTAKE.md](docs/INTAKE.md) | Connecting a client's website form (for web designers) |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Putting it online (Supabase + Vercel), domains, backups, rollback |
 | [docs/COSTS.md](docs/COSTS.md) | Expected running costs and assumptions |
 | [docs/ACCOUNT_INVENTORY.md](docs/ACCOUNT_INVENTORY.md) | Every outside account you'll own |
@@ -42,7 +44,7 @@ In `.env.local` set `ENCRYPTION_KEY` to the output of
 `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`. The other defaults work for a
 local PostgreSQL whose superuser is `postgres` / password `postgres` (otherwise set `LOCAL_PG_SUPERUSER_URL`).
 
-Sample sign‑ins (password `bluewater-dev-password`, fictional data only):
+Sample sign‑ins (password `bluewater-dev-password`; Harbor and Bayside come with ~130 fictional leads each):
 - `admin@bluewater.test` — Bluewater administrator (you'll set up two‑step verification on first sign‑in)
 - `jordan@harbor.test` — owner, Harbor Home Services (Package 2); `alex@harbor.test` — employee
 - `taylor@summit.test` — owner, Summit Roofing (Package 1)
@@ -68,7 +70,7 @@ src/app/admin         Bluewater administrator area (/admin/...)
 src/lib/auth          sign-in providers (Supabase for real; local for dev/tests)
 src/lib/authz         roles, packages, account status, the server-side gatekeeper
 src/lib/db            database schema, connection, the three guarded "doors"
-src/server            business logic (companies, invitations, team, onboarding)
+src/server            business logic (companies, invitations, team, CRM, intake, metrics, sample data)
 drizzle/              database migrations (incl. row-level security)
 tests/                unit, integration (real database) and browser tests
 docs/                 everything above

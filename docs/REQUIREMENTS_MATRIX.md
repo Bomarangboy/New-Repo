@@ -18,24 +18,28 @@ Status: ✅ Implemented & verified · 🟡 Implemented, awaiting live verificati
 | 4 | Session revocation, offboarding, ownership transfer | ✅ | `team.ts`, `resolveUser` | integration + browser | |
 | 4 | Server‑side company authorization; browser ID not trusted | ✅ | `resolveCompanyContext` | forged‑cookie browser test | |
 | 4 | Isolation: DB records | ✅ | RLS `0001_security.sql` | `isolation.test.ts` | |
-| 4 | Isolation: conversations, jobs, files, search, exports, reports, integrations, tickets, notifications | ⬜ 2–7 | Same RLS pattern per table | Each stage adds cross‑company tests | |
+| 4 | Isolation: CRM records, search, exports, intake | ✅ | RLS + composite keys `0003_crm_security.sql` | crm.test.ts | |
+| 4 | Isolation: conversations, jobs, files, reports, integrations, tickets, notifications | ⬜ 3–7 | Same pattern | Each stage adds cross‑company tests | |
 | 4 | Secrets out of frontend/logs/commits | ✅ | `env.ts`, `.gitignore`, `redactDetails` | unit tests | |
 | 4 | Controlled support access, no unrestricted impersonation | ✅ | `support_access_grants` | integration | |
 | 4 | Admin account recovery without bypass | ✅ (documented) | CLI‑only admin creation | — | OWNER_MANUAL.md |
-| 5 | Website form intake, manual entry, CSV import | ⬜ 2 | | | |
+| 5 | Website form intake, manual entry, CSV import | ✅ | `server/intake/website.ts`, `server/crm/*`, `/api/intake/[key]` | intake.test.ts, crm.test.ts, stage2 browser tests | Live HTTP behind Vercel 🟡 |
 | 5 | Ad lead‑form intake | ⬜ 5 | | | ⛔ Meta App Review / Google access |
-| 5 | Dedupe, repeat inquiries, idempotency, no messaging on imports | ⬜ 2–3 | Design in ARCHITECTURE.md | | |
+| 5 | Dedupe, repeat inquiries, idempotency, no messaging on imports | ✅ | `record-inquiry.ts`, intake events, `automation_origin` | crm/intake tests incl. deterministic race | Send-side idempotency in Stage 3 |
+| 5 | Required lead fields, tracking, consent evidence, history | ✅ | schema `inquiries`, `consent_records`, `inquiry_events` | crm/intake tests | |
+| 5 | Search, filters, pagination, safe export | ✅ | `/app/leads`, `/app/leads/export` | crm.test.ts, browser | |
 | 6 | CRM mode selection; external labeled unavailable | ✅ | Settings page, `chooseCrmMode` | integration | |
-| 6 | Built‑in CRM records & pipeline | ⬜ 2 | | | |
+| 6 | Built‑in CRM records & pipeline (New→Contacted→Booked→Won/Lost), notes, tasks, sales | ✅ | `server/crm/leads.ts`, lead pages, pipeline board | crm.test.ts, browser | Appointments in Stage 4 |
 | 6 | External connector interface | ⬜ 6 (contract documented) | ARCHITECTURE.md | | D‑11 open |
 | 7–8 | Messaging, inbox, sequences, stop rules, opt‑outs, senders | ⬜ 3–4 | Design in ARCHITECTURE.md | | D‑08/09/18 |
 | 9 | Booking | ⬜ 4 | | | D‑10 open |
 | 10 | Meta/Google connections | ⬜ 5 | | | ⛔ approvals |
-| 11 | Dashboards & reporting definitions | ⬜ 2/5/7 | Overview shows "No data yet", never fake zeros | | |
+| 11 | Dashboards & reporting definitions | ✅ (P1/P2 lead metrics) / ⬜ 3–5 | `server/metrics.ts`, METRICS.md, Help page | reconciliation tests, DST unit tests | Messaging & ad metrics later |
 | 12 | All Customers directory + filters | ✅ | `/admin` | browser test | |
 | 12 | Separate lifecycle / billing / suspension | ✅ | schema + `account-policy.ts` | unit + integration | |
 | 12 | Package & lifecycle history, reactivation, churn reason | ✅ | `server/companies.ts` | integration | |
-| 12 | Service‑end automation stop, retention, deletion | ⬜ 3/7 | | | |
+| 12 | Scheduled cancellation, service end | ✅ / 🟡 | `scheduleCancellation`, `accountPolicy` end-date rule | crm.test.ts, unit | Auto status change runs with the Stage 3 scheduler |
+| 12 | Retention, deletion | ⬜ 7 | | | |
 | 13 | Routine config in database, sensitive changes logged | ✅ (Stage‑1 scope) | `audit_log` | integration | Templates/sequences later |
 | 14 | Onboarding checklist with statuses | ✅ (Stage‑1 data) | `server/onboarding.ts` | screenshot | Steps fill in as features land |
 | 15–16 | Health center, monitoring, playbooks, support tickets | ⬜ 7 | | | D‑14, D‑17 |
@@ -43,6 +47,6 @@ Status: ✅ Implemented & verified · 🟡 Implemented, awaiting live verificati
 | 18 | Capacity targets & load test | ⬜ 7 | Targets proposed D‑15 | | |
 | 19 | Usage tracking, cost estimates | ⬜ 3/7 | | | D‑13, D‑16 |
 | 20 | Environments, env example, migrations | ✅ / 🟡 | `.env.example`, `drizzle/`, DEPLOYMENT.md | migrations run in tests | Hosting not created yet |
-| 21 | Sales demo | 🎭 foundation | `APP_ENV=demo` guards, demo kinds, expiry | unit tests | Dataset & controls Stage 2+ |
+| 21 | Sales demo | 🎭 foundation + dataset v1 | demo guards, `server/demo/dataset.ts` | totals-reconcile test | Prospect access & presentation controls Stage 3+ |
 | 22 | Account inventory, owner manual, technical docs | ✅ (initial) | `docs/*` | — | Grows each stage |
 | 23 | Verification statuses & acceptance | ✅ | this file, IMPLEMENTATION_PLAN.md | — | |

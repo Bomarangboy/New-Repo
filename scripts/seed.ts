@@ -13,6 +13,7 @@ import { withSystemDb } from "../src/lib/db/context";
 import { closeDb } from "../src/lib/db/client";
 import { companies, lifecycleHistory, memberships, packageHistory, users } from "../src/lib/db/schema";
 import { localCreateUser } from "../src/lib/auth/local-core";
+import { generateDemoDataset } from "../src/server/demo/dataset";
 
 export const DEV_PASSWORD = "bluewater-dev-password";
 
@@ -46,9 +47,15 @@ async function main() {
       }).returning();
       await tx.insert(packageHistory).values({ companyId: co!.id, toPackage: c.package, note: "Development seed" });
       await tx.insert(lifecycleHistory).values({ companyId: co!.id, toStatus: c.lifecycleStatus, reason: "Development seed" });
+      const memberIds: string[] = [];
       for (const p of ids) {
         const [u] = await tx.insert(users).values({ authUserId: p.auth, email: p.email, fullName: p.name }).onConflictDoNothing().returning();
-        if (u) await tx.insert(memberships).values({ companyId: co!.id, userId: u.id, role: p.role });
+        if (u) { await tx.insert(memberships).values({ companyId: co!.id, userId: u.id, role: p.role }); memberIds.push(u.id); }
+      }
+      // Fictional sample leads for companies that are "active" (Summit stays empty to show onboarding).
+      if (c.lifecycleStatus === "active") {
+        await tx.execute(sql`select set_config('app.company_id', ${co!.id}, true)`);
+        await generateDemoDataset(tx, { companyId: co!.id, memberIds, seed: c.slug.length * 7919 });
       }
     });
   }

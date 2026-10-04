@@ -1,11 +1,14 @@
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
+  foreignKey,
   index,
   jsonb,
   pgSchema,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
   integer,
@@ -249,3 +252,235 @@ export const devOutbox = app.table("dev_outbox", {
   textBody: text("text_body").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/* =====================================================================================
+ * Stage 2 — built-in CRM and lead intake.
+ * Every table carries company_id; child rows reference parents through (company_id, id)
+ * composite keys, so a record can never point at another company's record.
+ * ===================================================================================== */
+
+export const pipelineStage = app.enum("pipeline_stage", ["new", "contacted", "booked", "won", "lost"]);
+export const inquirySource = app.enum("inquiry_source", [
+  "website_form", "manual", "csv_import", "meta_lead_form", "google_lead_form", "other",
+]);
+/**
+ * Whether the automatic acknowledgment/follow-up may consider this inquiry (Stage 3).
+ *  eligible  – arrived live through an intake source while the account allowed automation
+ *  held      – arrived live while automation was off (onboarding/paused/suspended); never auto-sent later
+ *  none      – manual entry, CSV import, backfill or sync; only an explicit enrollment can change this
+ */
+export const automationOrigin = app.enum("automation_origin", ["eligible", "held", "none"]);
+
+export const contacts = app.table(
+  "contacts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    fullName: text("full_name").notNull().default(""),
+    email: text("email"),
+    /** Lower-cased, trimmed; used for duplicate detection. */
+    emailNormalized: text("email_normalized"),
+    phone: text("phone"),
+    /** E.164 (+15551234567); used for duplicate detection. */
+    phoneE164: text("phone_e164"),
+    ...timestamps,
+  },
+  (t) => [
+    unique("contacts_company_id_key").on(t.companyId, t.id),
+    uniqueIndex("contacts_company_email_key").on(t.companyId, t.emailNormalized).where(sql`${t.emailNormalized} is not null`),
+    uniqueIndex("contacts_company_phone_key").on(t.companyId, t.phoneE164).where(sql`${t.phoneE164} is not null`),
+    index("contacts_company_name_idx").on(t.companyId, t.fullName),
+  ],
+);
+
+/** One row per inquiry. Repeat inquiries from the same contact stay separate. */
+export const inquiries = app.table(
+  "inquiries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    contactId: uuid("contact_id").notNull(),
+    source: inquirySource("source").notNull(),
+    /** Human label, e.g. the website form's name. */
+    sourceLabel: text("source_label"),
+    intakeSourceId: uuid("intake_source_id"),
+    serviceRequested: text("service_requested"),
+    message: text("message"),
+    /** When the person submitted it (as reported by the source). */
+    submittedAt: timestamp("submitted_at", { withTimezone: true }).notNull(),
+    /** When Bluewater durably recorded it. */
+    receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
+    stage: pipelineStage("stage").notNull().default("new"),
+    stageChangedAt: timestamp("stage_changed_at", { withTimezone: true }).notNull().defaultNow(),
+    assignedUserId: uuid("assigned_user_id").references(() => users.id, { onDelete: "set null" }),
+    /** Recorded sale value in cents (USD). Null = no sale recorded (not zero). */
+    saleValueCents: bigint("sale_value_cents", { mode: "number" }),
+    saleCurrency: text("sale_currency").notNull().default("USD"),
+    wonAt: timestamp("won_at", { withTimezone: true }),
+    lostReason: text("lost_reason"),
+    isRepeat: boolean("is_repeat").notNull().default(false),
+    automationOrigin: automationOrigin("automation_origin").notNull().default("none"),
+    /** utm_source, utm_medium, utm_campaign, utm_term, utm_content, gclid, fbclid, landing_page, referrer */
+    tracking: jsonb("tracking").$type<Record<string, string>>().notNull().default({}),
+    /** Platform identifiers when available: form_id, campaign_id, adset_id, ad_id, lead_id … */
+    externalIds: jsonb("external_ids").$type<Record<string, string>>().notNull().default({}),
+    importBatchId: uuid("import_batch_id"),
+    ...timestamps,
+  },
+  (t) => [
+    unique("inquiries_company_id_key").on(t.companyId, t.id),
+    foreignKey({ columns: [t.companyId, t.contactId], foreignColumns: [contacts.companyId, contacts.id], name: "inquiries_contact_fk" }).onDelete("cascade"),
+    index("inquiries_company_received_idx").on(t.companyId, t.receivedAt),
+    index("inquiries_company_stage_idx").on(t.companyId, t.stage),
+    index("inquiries_contact_idx").on(t.contactId),
+  ],
+);
+
+/** Contact-permission evidence, captured at the moment it was given. */
+export const consentRecords = app.table(
+  "consent_records",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    contactId: uuid("contact_id").notNull(),
+    inquiryId: uuid("inquiry_id"),
+    channel: text("channel").notNull(), // sms | email
+    purpose: text("purpose").notNull(), // inquiry_response | marketing
+    granted: boolean("granted").notNull(),
+    /** Exact wording shown to the person, if provided by the form. */
+    statement: text("statement"),
+    method: text("method").notNull(), // web_form_checkbox | lead_form | verbal_recorded_by_staff | import_attested
+    capturedAt: timestamp("captured_at", { withTimezone: true }).notNull(),
+    pageUrl: text("page_url"),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    recordedByUserId: uuid("recorded_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    foreignKey({ columns: [t.companyId, t.contactId], foreignColumns: [contacts.companyId, contacts.id], name: "consent_contact_fk" }).onDelete("cascade"),
+    index("consent_contact_idx").on(t.companyId, t.contactId),
+  ],
+);
+
+export const notes = app.table(
+  "notes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    inquiryId: uuid("inquiry_id").notNull(),
+    authorUserId: uuid("author_user_id").references(() => users.id, { onDelete: "set null" }),
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    foreignKey({ columns: [t.companyId, t.inquiryId], foreignColumns: [inquiries.companyId, inquiries.id], name: "notes_inquiry_fk" }).onDelete("cascade"),
+    index("notes_inquiry_idx").on(t.inquiryId),
+  ],
+);
+
+export const tasks = app.table(
+  "tasks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    inquiryId: uuid("inquiry_id").notNull(),
+    title: text("title").notNull(),
+    dueAt: timestamp("due_at", { withTimezone: true }),
+    assignedUserId: uuid("assigned_user_id").references(() => users.id, { onDelete: "set null" }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [
+    foreignKey({ columns: [t.companyId, t.inquiryId], foreignColumns: [inquiries.companyId, inquiries.id], name: "tasks_inquiry_fk" }).onDelete("cascade"),
+    index("tasks_company_open_idx").on(t.companyId, t.completedAt, t.dueAt),
+  ],
+);
+
+/** Record history: every change to an inquiry, in order. */
+export const inquiryEvents = app.table(
+  "inquiry_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    inquiryId: uuid("inquiry_id").notNull(),
+    type: text("type").notNull(),
+    actorUserId: uuid("actor_user_id").references(() => users.id, { onDelete: "set null" }),
+    actorType: text("actor_type").notNull().default("user"),
+    details: jsonb("details").$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    foreignKey({ columns: [t.companyId, t.inquiryId], foreignColumns: [inquiries.companyId, inquiries.id], name: "inquiry_events_inquiry_fk" }).onDelete("cascade"),
+    index("inquiry_events_inquiry_idx").on(t.inquiryId, t.createdAt),
+  ],
+);
+
+/** A configured way for leads to arrive (website form endpoint now; ad lead forms in Stage 5). */
+export const intakeSources = app.table(
+  "intake_sources",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull().default("website_form"),
+    name: text("name").notNull(),
+    /** Public identifier used in the intake URL. Not a secret (it appears in website code). */
+    publicKey: text("public_key").notNull(),
+    /** Optional HMAC secret for server-to-server submissions (encrypted). When set, signatures are required. */
+    signingSecretEnc: text("signing_secret_enc"),
+    allowedOrigins: jsonb("allowed_origins").$type<string[]>().notNull().default([]),
+    active: boolean("active").notNull().default(true),
+    lastReceivedAt: timestamp("last_received_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("intake_sources_public_key_key").on(t.publicKey), index("intake_sources_company_idx").on(t.companyId)],
+);
+
+/**
+ * Every submission received, written BEFORE we tell the sender "received".
+ * The unique (source, idempotency_key) index makes retries and replays harmless.
+ */
+export const intakeEvents = app.table(
+  "intake_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    intakeSourceId: uuid("intake_source_id").notNull().references(() => intakeSources.id, { onDelete: "cascade" }),
+    idempotencyKey: text("idempotency_key").notNull(),
+    contentHash: text("content_hash").notNull(),
+    payload: jsonb("payload").$type<Record<string, unknown>>(),
+    status: text("status").notNull().default("received"), // received | processed | rejected | failed
+    error: text("error"),
+    inquiryId: uuid("inquiry_id"),
+    ipHash: text("ip_hash"),
+    receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
+    processedAt: timestamp("processed_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("intake_events_idempotency_key").on(t.intakeSourceId, t.idempotencyKey),
+    index("intake_events_source_received_idx").on(t.intakeSourceId, t.receivedAt),
+    index("intake_events_content_idx").on(t.intakeSourceId, t.contentHash, t.receivedAt),
+  ],
+);
+
+/** CSV imports: validated and previewed first, committed once. */
+export const importBatches = app.table(
+  "import_batches",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    fileName: text("file_name").notNull(),
+    status: text("status").notNull().default("previewed"), // previewed | committed | cancelled
+    rows: jsonb("rows").$type<unknown[]>().notNull().default([]),
+    errors: jsonb("errors").$type<{ row: number; problems: string[] }[]>().notNull().default([]),
+    totalRows: integer("total_rows").notNull().default(0),
+    validRows: integer("valid_rows").notNull().default(0),
+    createdCount: integer("created_count").notNull().default(0),
+    matchedCount: integer("matched_count").notNull().default(0),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    committedAt: timestamp("committed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("import_batches_company_idx").on(t.companyId)],
+);
