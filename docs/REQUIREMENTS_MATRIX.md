@@ -20,7 +20,8 @@ Status: ✅ Implemented & verified · 🟡 Implemented, awaiting live verificati
 | 4 | Isolation: DB records | ✅ | RLS `0001_security.sql` | `isolation.test.ts` | |
 | 4 | Isolation: CRM records, search, exports, intake | ✅ | RLS + composite keys `0003_crm_security.sql` | crm.test.ts | |
 | 4 | Isolation: conversations, jobs, senders, suppressions, notifications | ✅ | RLS `0005_messaging_security.sql` | messaging.test.ts | |
-| 4 | Isolation: files, reports, integrations, tickets | ⬜ 4–7 | Same pattern | Each stage adds cross‑company tests | |
+| 4 | Isolation: sequences, enrollments, appointments, booking connection | ✅ | RLS `0007_sequences_booking_security.sql` | sequences/booking isolation tests | |
+| 4 | Isolation: files, reports, integrations, tickets | ⬜ 5–7 | Same pattern | Each stage adds cross‑company tests | |
 | 4 | Secrets out of frontend/logs/commits | ✅ | `env.ts`, `.gitignore`, `redactDetails` | unit tests | |
 | 4 | Controlled support access, no unrestricted impersonation | ✅ | `support_access_grants` | integration | |
 | 4 | Admin account recovery without bypass | ✅ (documented) | CLI‑only admin creation | — | OWNER_MANUAL.md |
@@ -30,30 +31,34 @@ Status: ✅ Implemented & verified · 🟡 Implemented, awaiting live verificati
 | 5 | Required lead fields, tracking, consent evidence, history | ✅ | schema `inquiries`, `consent_records`, `inquiry_events` | crm/intake tests | |
 | 5 | Search, filters, pagination, safe export | ✅ | `/app/leads`, `/app/leads/export` | crm.test.ts, browser | |
 | 6 | CRM mode selection; external labeled unavailable | ✅ | Settings page, `chooseCrmMode` | integration | |
-| 6 | Built‑in CRM records & pipeline (New→Contacted→Booked→Won/Lost), notes, tasks, sales | ✅ | `server/crm/leads.ts`, lead pages, pipeline board | crm.test.ts, browser | Appointments in Stage 4 |
+| 6 | Built‑in CRM records & pipeline (New→Contacted→Booked→Won/Lost), notes, tasks, sales | ✅ | `server/crm/leads.ts`, lead pages, pipeline board | crm.test.ts, browser | Appointments added in Stage 4 |
 | 6 | External connector interface | ⬜ 6 (contract documented) | ARCHITECTURE.md | | D‑11 open |
 | 7 | Acknowledgment, templates, sending window, pre‑send check | ✅ 🎭 | `server/messaging/*`, MESSAGING.md | messaging.test.ts, messaging-rules unit, stage3 browser | Simulated; live 🟡 |
 | 7 | Two‑way inbox, manual replies, needs‑reply | ✅ 🎭 | `/app/conversations`, `inbox.ts` | messaging.test.ts, browser | |
 | 7 | Durable jobs, retries, idempotency, unknown sends | ✅ | `server/jobs/*`, `send.ts` | concurrent worker + crash tests | Cron trigger 🟡 |
 | 7 | Opt‑outs, suppression, unsubscribe, emergency stop | ✅ | `inbound.ts`, `unsubscribe.ts`, `settings.ts` | messaging/webhooks tests, browser | D‑18 legal review |
 | 7 | Twilio/Postmark senders & webhooks | 🟡 | `transport.ts`, `webhooks.ts`, admin Senders | signature tests with Twilio's library | ⛔ accounts, A2P, go‑live approval |
-| 8 | Follow‑up sequences | ⬜ 4 | | | |
-| 9 | Booking | ⬜ 4 | | | D‑10 Cal.com |
+| 7–8 | Multi‑day follow‑up sequences, versioning, pause/resume/stop | ✅ 🎭 | `server/sequences/*`, sequence editor, lead page | sequences.test.ts (18), stage4 browser | Simulated delivery |
+| 7 | Stop after reply, booking, opt‑out, closed, manual message, suspension/service end, package | ✅ | `sequences/stop.ts` + pre‑send `decideStep` | sequences.test.ts incl. bypassed‑hook test | D‑28 |
+| 13 | Sequence/template changes validated, previewed, versioned; effect on active enrollments defined | ✅ | `saveSequence`, D‑26 | sequences.test.ts | |
+| 9 | Booking links, booking‑to‑lead association, create/reschedule/cancel, sequence cancellation | ✅ / 🟡 | `server/booking/*`, `/api/webhooks/calcom/[key]` | booking.test.ts (14), booking-rules unit, stage4 browser | Live Cal.com check pending |
+| 9 | Confirmations & reminders without duplicating Cal.com's | ✅ 🎭 | `booking/messages.ts`, D‑27 | booking.test.ts | |
+| 9 | Timezones/DST, authoritative system, sync failures recorded | ✅ | `formatAppointmentTime`, `localToInstant`, `booking_events`, D‑29 | unit + integration | |
 | 10 | Meta/Google connections | ⬜ 5 | | | ⛔ approvals |
-| 11 | Dashboards & reporting definitions | ✅ (P1/P2 lead + messaging metrics) / ⬜ 5 | `server/metrics.ts`, METRICS.md, Help page | reconciliation tests, DST unit tests | Ad metrics in Stage 5 |
+| 11 | Dashboards & reporting definitions | ✅ (P1/P2 incl. follow‑ups & appointments) / ⬜ 5 | `server/metrics.ts`, METRICS.md, Help page | reconciliation tests, DST unit tests | Ad metrics in Stage 5 |
 | 12 | All Customers directory + filters | ✅ | `/admin` | browser test | |
 | 12 | Separate lifecycle / billing / suspension | ✅ | schema + `account-policy.ts` | unit + integration | |
 | 12 | Package & lifecycle history, reactivation, churn reason | ✅ | `server/companies.ts` | integration | |
 | 12 | Scheduled cancellation, service end | ✅ | `scheduleCancellation`, `applyDueCancellations` in maintenance | crm.test.ts, unit | |
 | 12 | Retention, deletion | ⬜ 7 | | | |
 | 13 | Routine config in database, sensitive changes logged | ✅ (Stage‑1 scope) | `audit_log` | integration | Templates/sequences later |
-| 14 | Onboarding checklist with statuses | ✅ (Stage‑1 data) | `server/onboarding.ts` | screenshot | Steps fill in as features land |
+| 14 | Onboarding checklist with statuses | ✅ (incl. follow‑up & booking steps) | `server/onboarding.ts` | screenshot | Steps fill in as features land |
 | 15–16 | Health center (jobs, unknown messages, senders) | ✅ (Stage‑3 scope) | `/admin/health`, `server/health.ts` | browser | Monitoring/tickets Stage 7 |
 | 15–16 | Monitoring, full playbooks, support tickets | ⬜ 7 | | | D‑17 |
 | 17 | Backups & disaster recovery | ⬜ 7 | Supabase daily backups | Restore test planned | |
 | 18 | Capacity targets & load test | ⬜ 7 | Targets proposed D‑15 | | |
 | 19 | Usage tracking, cost estimates | ⬜ 3/7 | | | D‑13, D‑16 |
 | 20 | Environments, env example, migrations | ✅ / 🟡 | `.env.example`, `drizzle/`, DEPLOYMENT.md | migrations run in tests | Hosting not created yet |
-| 21 | Sales demo | 🎭 foundation + dataset v1 | demo guards, `server/demo/dataset.ts` | totals-reconcile test | Prospect access & presentation controls Stage 3+ |
+| 21 | Sales demo | 🎭 foundation + dataset (leads, conversations, follow‑ups, appointments) + simulate reply/booking | demo guards, `server/demo/dataset.ts` | totals-reconcile test | Prospect access & presentation controls Stage 3+ |
 | 22 | Account inventory, owner manual, technical docs | ✅ (initial) | `docs/*` | — | Grows each stage |
 | 23 | Verification statuses & acceptance | ✅ | this file, IMPLEMENTATION_PLAN.md | — | |

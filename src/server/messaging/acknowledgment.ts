@@ -1,8 +1,11 @@
 import { and, eq, gt, or, sql } from "drizzle-orm";
 import type { Tx } from "@/lib/db/client";
 import { withSystemCompanyDb } from "@/lib/db/context";
-import { companies, companySenders, contacts, inquiries, messages } from "@/lib/db/schema";
+import { bookingSettings, companies, companySenders, contacts, inquiries, messages } from "@/lib/db/schema";
 import { accountPolicy } from "@/lib/authz/account-policy";
+import { hasFeature } from "@/lib/authz/entitlements";
+import { autoEnrollNewLead } from "@/server/sequences/engine";
+import { bookingLinkFor } from "@/server/booking/links";
 import { env, isSimulatedEnvironment } from "@/lib/env";
 import { enqueue, type JobOutcome, type JobRow } from "@/server/jobs/queue";
 import { activeSuppression, latestConsent } from "./eligibility";
@@ -20,6 +23,7 @@ export const ACK_MAX_AGE_MS = 24 * 3600_000;
 export async function enqueueNewLeadWork(tx: Tx, companyId: string, inquiryId: string, automationOrigin: string) {
   if (automationOrigin === "eligible") {
     await enqueue(tx, { companyId, kind: "send_acknowledgment", key: `ack:${inquiryId}`, payload: { inquiryId }, maxAttempts: 5 });
+    await autoEnrollNewLead(tx, companyId, inquiryId);
   }
   if (automationOrigin === "eligible" || automationOrigin === "held") {
     await enqueue(tx, { companyId, kind: "notify_new_lead", key: `notify:new_lead:${inquiryId}`, payload: { inquiryId }, maxAttempts: 5 });
@@ -85,7 +89,12 @@ export async function decideAcknowledgment(tx: Tx, companyId: string, inquiryId:
   }
 
   const tpl = await activeTemplate(tx, companyId, channel === "sms" ? "ack_sms" : "ack_email");
-  const vars = varsFor(c, company.name, i.serviceRequested);
+  let bookingLink: string | null = null;
+  if (hasFeature(company.package, "booking")) {
+    const [b] = await tx.select({ url: bookingSettings.bookingUrl }).from(bookingSettings).where(eq(bookingSettings.companyId, companyId));
+    bookingLink = bookingLinkFor(b?.url, i.id, channel === "email" ? { name: c.fullName || null, email: c.email } : undefined);
+  }
+  const vars = varsFor(c, company.name, i.serviceRequested, { bookingLink });
   return {
     action: "send", channel, to: channel === "sms" ? c.phoneE164! : c.email!, transport,
     subject: tpl.subject ? renderTemplate(tpl.subject, vars) : null, body: renderTemplate(tpl.body, vars),

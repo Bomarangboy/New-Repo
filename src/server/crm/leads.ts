@@ -10,6 +10,7 @@ import { hasFeature } from "@/lib/authz/entitlements";
 import type { CompanyContext } from "@/lib/authz/context-types";
 import { cleanMultiline, cleanText, csvSafe, normalizeEmail, normalizePhone } from "@/lib/contact-normalize";
 import { recordInquiry } from "./record-inquiry";
+import { stopEnrollments } from "@/server/sequences/stop";
 
 export const STAGES = ["new", "contacted", "booked", "won", "lost"] as const;
 export type Stage = (typeof STAGES)[number];
@@ -176,6 +177,9 @@ export async function changeStage(ctx: CompanyContext, inquiryId: string, stage:
     else patch.lostReason = null;
     const [updated] = await tx.update(inquiries).set(patch).where(eq(inquiries.id, inquiryId)).returning();
     await logEvent(tx, ctx, inquiryId, "stage_changed", { from: cur.stage, to: stage, lostReason: patch.lostReason ?? undefined });
+    if (stage === "booked" || stage === "won" || stage === "lost") {
+      await stopEnrollments(tx, ctx.companyId, { inquiryId }, stage === "booked" ? "booked" : "closed", stage === "booked" ? "The lead was marked Booked" : `The lead was marked ${STAGE_LABELS[stage]}`, { userId: ctx.userId, type: actorType(ctx) });
+    }
     return updated!;
   });
 }
@@ -196,6 +200,7 @@ export async function recordSale(ctx: CompanyContext, inquiryId: string, rawAmou
     if (cents != null && cur.stage !== "won") Object.assign(patch, { stage: "won", stageChangedAt: new Date(), wonAt: cur.wonAt ?? new Date(), lostReason: null });
     await tx.update(inquiries).set(patch).where(eq(inquiries.id, inquiryId));
     await logEvent(tx, ctx, inquiryId, "sale_recorded", { fromCents: cur.saleValueCents, toCents: cents, stageFrom: cur.stage });
+    if (cents != null) await stopEnrollments(tx, ctx.companyId, { inquiryId }, "closed", "The lead was marked Won", { userId: ctx.userId, type: actorType(ctx) });
   });
 }
 

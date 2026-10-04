@@ -3,6 +3,7 @@ import { withSystemCompanyDb } from "@/lib/db/context";
 import { contacts, conversations, messages, messageStatusEvents, suppressions } from "@/lib/db/schema";
 import { enqueue } from "@/server/jobs/queue";
 import { ensureConversation } from "./send";
+import { stopEnrollments } from "@/server/sequences/stop";
 
 /**
  * Incoming texts and emails. Rules (docs/MESSAGING.md):
@@ -68,6 +69,9 @@ export async function handleInbound(m: InboundInput): Promise<{ stored: boolean;
         .where(and(eq(suppressions.companyId, m.companyId), eq(suppressions.channel, "sms"), eq(suppressions.address, address), eq(suppressions.reason, "opt_out_keyword"), isNull(suppressions.liftedAt)));
     }
     const needsHuman = classification === "message" || classification === "help";
+    // A reply hands the person to the team; an opt-out ends follow-ups. (Each step re-checks this too.)
+    if (classification === "opt_out") await stopEnrollments(tx, m.companyId, { contactId: contact!.id }, "opted_out", `They opted out by ${m.channel === "sms" ? "text" : "email"}`);
+    else if (needsHuman) await stopEnrollments(tx, m.companyId, { contactId: contact!.id }, "replied", `They replied by ${m.channel === "sms" ? "text" : "email"}`);
     await tx.update(conversations).set({ lastMessageAt: now, lastInboundAt: now, updatedAt: now, ...(needsHuman ? { needsReply: true } : {}) }).where(eq(conversations.id, conversationId));
     if (needsHuman) {
       await enqueue(tx, { companyId: m.companyId, kind: "notify_reply", key: `notify:reply:${inserted[0].id}`, payload: { conversationId }, runAt: new Date(now.getTime() + 60_000) });

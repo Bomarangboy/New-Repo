@@ -27,7 +27,9 @@ view‑only unless you choose otherwise, and the client sees it in their own act
    A2P registration is approved and the email domain is verified. Copy the Postmark webhook address shown
    once into Postmark. Until live sending is approved, everything stays simulated.
 8. The owner reviews **Automations**: acknowledgment wording, sending hours and who gets alerts.
-9. _(coming)_ Booking; the controlled test.
+9. Package 2: the owner turns on a **follow‑up sequence** (Automations; a suggested one is provided — review the
+   wording first) and connects **Cal.com** (Connected Accounts → Scheduling; steps in `docs/BOOKING.md`).
+   Then the controlled test: a test lead through the form, a test booking through its personal link.
 10. Change status to **Active** when the test passes. Leads that arrived before activation are kept but will
    never be messaged automatically.
 
@@ -60,6 +62,22 @@ view‑only unless you choose otherwise, and the client sees it in their own act
 minute once deployed; older than 5 minutes is flagged), jobs that failed (retry or cancel them) and messages with an **unknown** result.
 An unknown message *may* have reached the person: check the provider's log (Twilio/Postmark) and then mark it
 delivered or failed. Bluewater never re-sends these automatically, to avoid double-texting someone.
+
+## Follow‑ups and appointments (Package 2, Stage 4)
+- **Follow‑up sequence:** after the first acknowledgment, Bluewater keeps in touch over the following days
+  (default: day 1, day 3, day 7) until the person replies, books, opts out or the lead is closed — then it stops
+  for good. Each message is checked again just before it goes out. If someone asked by phone to stop, use
+  **Record opt‑out** on their conversation, or **Stop** on the lead's follow‑up card.
+- On a lead page, **Automatic follow‑up** shows where they are (step 2 of 3, next message Tuesday 10:00) with
+  **Pause / Resume / Stop**, and lets a team member start a follow‑up by hand.
+- Editing a sequence saves a new version; people already in it finish the version they started.
+- When the last step goes out without a reply, a **call‑back task** is created for the assigned person.
+- **Appointments:** online bookings through Cal.com appear automatically, move the lead to Booked, stop
+  follow‑ups and get a text confirmation and reminders (24 h and 2 h before, adjustable). Change or cancel Cal.com
+  bookings in Cal.com — Bluewater follows. Bookings made by phone: **Add an appointment** on the lead page.
+  After the visit, mark **Completed** or **No‑show** on the Appointments page.
+- If a booking shows up on a *new* lead instead of the existing one, the person booked from the general page with a
+  different email. It's still recorded; you can note the link in the lead's notes.
 
 ## Cancellations
 On the company's admin page, **Record a cancellation request** with the end date and reason. The client keeps

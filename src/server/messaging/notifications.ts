@@ -1,6 +1,7 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { withSystemCompanyDb } from "@/lib/db/context";
-import { companies, contacts, conversations, inquiries, memberships, notifications, users } from "@/lib/db/schema";
+import { appointments, companies, contacts, conversations, inquiries, memberships, notifications, users } from "@/lib/db/schema";
+import { formatAppointmentTime } from "@/server/booking/links";
 import { env } from "@/lib/env";
 import { sendSystemEmail } from "@/lib/system-email";
 import type { JobOutcome, JobRow } from "@/server/jobs/queue";
@@ -11,7 +12,7 @@ import { loadSettings } from "./settings";
  * in-app record. Recipients: the company's chosen list, else the lead's assignee, else every owner.
  * One alert per person per event (unique index), so retries never double-notify.
  */
-type Kind = "new_lead" | "reply" | "ack_problem";
+type Kind = "new_lead" | "reply" | "ack_problem" | "booking_created" | "booking_rescheduled" | "booking_cancelled";
 
 async function recipients(companyId: string, assignedUserId: string | null): Promise<{ id: string; email: string }[]> {
   return withSystemCompanyDb(companyId, "notifications: recipients", async (tx) => {
@@ -25,18 +26,19 @@ async function recipients(companyId: string, assignedUserId: string | null): Pro
   });
 }
 
-async function notify(companyId: string, kind: Kind, p: { inquiryId?: string | null; conversationId?: string | null; assignedUserId: string | null; title: string; text: string; link: string }) {
+async function notify(companyId: string, kind: Kind, p: { inquiryId?: string | null; conversationId?: string | null; refKey?: string | null; assignedUserId: string | null; title: string; text: string; link: string }) {
   const people = await recipients(companyId, p.assignedUserId);
   let failures = 0;
   for (const person of people) {
     const fresh = await withSystemCompanyDb(companyId, "notifications: record", async (tx) => {
       const rows = await tx.insert(notifications).values({
-        companyId, userId: person.id, kind, inquiryId: p.inquiryId ?? null, conversationId: p.conversationId ?? null, title: p.title, emailStatus: "pending",
+        companyId, userId: person.id, kind, inquiryId: p.inquiryId ?? null, conversationId: p.conversationId ?? null, refKey: p.refKey ?? null, title: p.title, emailStatus: "pending",
       }).onConflictDoNothing().returning({ id: notifications.id });
       if (rows[0]) return rows[0].id;
       // Retry after a crash: resend only if the earlier email didn't go out.
       const [prev] = await tx.select().from(notifications).where(and(eq(notifications.companyId, companyId), eq(notifications.userId, person.id), eq(notifications.kind, kind),
-        p.inquiryId ? eq(notifications.inquiryId, p.inquiryId) : isNull(notifications.inquiryId), p.conversationId ? eq(notifications.conversationId, p.conversationId) : isNull(notifications.conversationId)));
+        p.inquiryId ? eq(notifications.inquiryId, p.inquiryId) : isNull(notifications.inquiryId), p.conversationId ? eq(notifications.conversationId, p.conversationId) : isNull(notifications.conversationId),
+        p.refKey ? eq(notifications.refKey, p.refKey) : isNull(notifications.refKey)));
       return prev && prev.emailStatus !== "sent" ? prev.id : null;
     });
     if (!fresh) continue;
@@ -102,6 +104,27 @@ export async function handleNotifyReply(job: JobRow): Promise<JobOutcome> {
     conversationId, assignedUserId: info.assigned, link: `/app/conversations/${conversationId}`,
     title: `${who} replied`, text: `${who} sent a new message. Automatic follow-up for this person is paused so a person can answer.`,
   }));
+}
+
+/** Booking created / moved / cancelled — the team hears about it once per change. */
+export async function handleNotifyBooking(job: JobRow): Promise<JobOutcome> {
+  const companyId = job.companyId!;
+  const kind = String(job.payload.kind) as "booking_created" | "booking_rescheduled" | "booking_cancelled";
+  const info = await withSystemCompanyDb(companyId, "notifications: load appointment", async (tx) => {
+    const [r] = await tx.select({ a: appointments, name: contacts.fullName, email: contacts.email, phone: contacts.phone, assigned: inquiries.assignedUserId, company: companies.name, tz: companies.timezone })
+      .from(appointments).innerJoin(contacts, eq(contacts.id, appointments.contactId)).innerJoin(inquiries, eq(inquiries.id, appointments.inquiryId))
+      .innerJoin(companies, eq(companies.id, appointments.companyId)).where(eq(appointments.id, String(job.payload.appointmentId)));
+    return r ?? null;
+  });
+  if (!info) return { status: "cancelled", result: "Appointment no longer exists" };
+  const who = info.name || info.email || info.phone || "A lead";
+  const when = formatAppointmentTime(info.a.startsAt, info.tz);
+  const src = info.a.source === "simulated" ? " (simulated)" : "";
+  const title = kind === "booking_created" ? `${who} booked ${when}${src}` : kind === "booking_rescheduled" ? `${who} moved their appointment to ${when}${src}` : `${who} cancelled their appointment${src}`;
+  const text = kind === "booking_cancelled"
+    ? `${who} cancelled the appointment on ${when}${info.a.cancellationReason ? ` (reason: ${info.a.cancellationReason})` : ""}. Automatic follow-up does not restart; reach out if you'd like to rebook.`
+    : `${title}. Automatic follow-up for this person has stopped.`;
+  return outcome(await notify(companyId, kind, { inquiryId: info.a.inquiryId, refKey: String(job.payload.refKey ?? info.a.id), assignedUserId: info.assigned, link: `/app/leads/${info.a.inquiryId}`, title, text }));
 }
 
 export async function unreadNotificationCount(companyId: string, userId: string): Promise<number> {

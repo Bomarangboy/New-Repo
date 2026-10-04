@@ -12,8 +12,8 @@ not a provider's live service unless stated.
 | 1 | Architecture, project setup, authentication, company isolation, permissions, admin company management | **Done** (live Supabase check pending) |
 | 2 | Company lifecycle details, built‑in CRM (contacts, inquiries, notes, tasks, pipeline), website intake, CSV import, basic dashboard, demo dataset v1 | **Done** |
 | 3 | Messaging (templates, acknowledgment, notifications), two‑way inbox, durable jobs, stop rules, opt‑outs, suppression | **Done** (simulated; live Twilio/Postmark pending accounts & approval) |
-| 4 | Follow‑up sequences, booking connector (Cal.com, D‑10), reminders | Next |
-| 5 | Meta & Google connectors (lead forms + reporting), reporting definitions | Planned; live use **blocked** by platform approvals |
+| 4 | Follow‑up sequences, booking connector (Cal.com, D‑10), appointments, confirmations & reminders | **Done** (simulated; live Cal.com check pending) |
+| 5 | Meta & Google connectors (lead forms + reporting), reporting definitions | **Next**; live use **blocked** by platform approvals |
 | 6 | First external CRM connector (D‑11) | Planned; waits for first client |
 | 7 | Billing/usage tooling, Health & Recovery Center, playbooks, backups & restore test, load test, deployment readiness | Planned |
 
@@ -159,9 +159,47 @@ Last run: see the Stage 2 verification below.
 170 unit + integration tests (Vitest, real PostgreSQL) and 23 browser tests passed;
 typecheck, lint and production build clean. Mutation checks: idempotency, status ordering, reply check.
 
-## Stage 4 plan (next)
-1. Follow‑up sequences (Package 2): steps, delays, channel, stop on reply/booking/opt‑out/stage change, same pre‑send check.
-2. Cal.com booking connector (simulated until connected): booking link in messages, booking webhook → appointment,
-   stage "Booked", stops sequences.
-3. Appointment reminders, no‑show handling, rescheduling.
-4. Tests: stop conditions, double‑booking webhooks, cross‑company isolation for sequences/appointments.
+## Stage 4 checklist
+
+### Implemented and verified
+- [x] Schema + forced RLS for sequences, step versions (append‑only), enrollments (one open per person), booking
+      settings, appointments, booking webhook log (append‑only) — `drizzle/0006`, `0007`; cross‑company tests.
+- [x] Follow‑up engine: auto‑enroll on eligible website leads, manual enrollment (with confirmation for non‑form
+      leads), steps as jobs with the full pre‑send check, skip‑not‑reroute, window waits, handoff task, one message
+      per step (concurrency + crash‑recovery tests).
+- [x] Stop rules wired at the source (reply, STOP/unsubscribe/manual opt‑out, team message, stage change, sale,
+      booking, emergency stop, sequence off, package downgrade, pause/suspend/churn/scheduled end) **and** re‑checked
+      before each step (test writes a reply bypassing the hook — still no send). Stopped follow‑ups never restart (D‑28).
+- [x] Sequence editor: up to 8 steps, wait/channel/wording per step, live checks and preview, versioning (D‑26),
+      on/off, automatic start (only one), stop/handoff options.
+- [x] Lead page: follow‑up status with pause/resume/stop/start; appointments with personal booking link, add
+      appointment, simulator; history entries for every follow‑up/appointment event.
+- [x] Cal.com connector: booking page, per‑client webhook address + secret shown once, HMAC verification as Cal.com
+      computes it, Ping → Connected, wrong‑signature problem shown to the owner; created / rescheduled / cancelled with
+      duplicate, out‑of‑order and replaced‑booking protection; lead matching by reference → email/phone → new lead.
+- [x] Appointments page (upcoming, past, cancelled; outcome marking; source labels incl. "Simulated").
+- [x] Confirmations & reminders: settings, editable versioned wording, Cal.com duplicate avoidance (D‑27),
+      re‑check before sending; reminders moved with reschedules.
+- [x] Overview (Package 2+): active follow‑ups, follow‑up results and why they stopped, upcoming appointments.
+      Onboarding steps for follow‑up and booking from real data. Team alerts for booking changes.
+- [x] Sample data: a sequence, follow‑ups at every stage, simulated appointments (labeled).
+
+### Implemented, awaiting live verification
+- [ ] Cal.com webhooks from a real account (format confirmed from Cal.com's source; `metadata[bw]` URL parameter
+      pass‑through to be confirmed with a real booking).
+
+## Verification (Stage 4 run, 2026‑10‑04)
+212 unit + integration tests (Vitest, real PostgreSQL) and 29 browser tests (Stages 1–4) passed; typecheck, lint and
+production build clean. Mutation checks (each safeguard broken on purpose → a test failed): signature check,
+out‑of‑order guard, replaced‑booking guard, cancel‑before‑create guard, reminder time check, Cal.com email
+duplicate rule, reply re‑check, step crash recovery, step double‑handling guard, manual‑enroll confirmation.
+
+## Stage 5 plan (next)
+1. Connected Accounts for Meta (Facebook/Instagram) and Google Ads: OAuth sign‑in (no passwords), account selection,
+   encrypted tokens, renewal, disconnect, last sync, reconnect instructions. Live use blocked until Meta App Review /
+   business verification and Google Ads API developer‑token approval — built and tested with recorded/simulated responses.
+2. Lead‑form intake (all packages) through `recordInquiry()`, with webhook verification and missed‑lead reconciliation.
+3. Ad reporting (Package 3): daily spend, impressions, clicks, conversions by campaign; historical + incremental
+   import; freshness labels; cost per lead and attribution definitions in METRICS.md (no attributed revenue without
+   reliable links).
+4. Tests: token isolation, idempotent imports, rate limits/pagination, cross‑company access, P1/P2 blocked from reports.

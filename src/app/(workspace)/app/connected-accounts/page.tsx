@@ -10,6 +10,9 @@ import { listIntakeSources, recentIntakeProblems } from "@/server/intake/sources
 import { HONEYPOT_FIELD } from "@/server/intake/website";
 import { createSourceAction, removeSecretAction, updateSourceAction } from "./actions";
 import { SecretForm } from "./secret-form";
+import { BookingPageForm, DisconnectBooking, WebhookSetup } from "./booking-card";
+import { getBookingSettings } from "@/server/booking/settings";
+import { isSimulatedEnvironment } from "@/lib/env";
 
 export const metadata = { title: "Connected Accounts" };
 
@@ -33,6 +36,7 @@ export default async function ConnectedAccountsPage({ searchParams }: { searchPa
   const problems = await recentIntakeProblems(ctx, 10);
   const canManage = roleCan(ctx.role, "integration.manage") && ctx.policy.login === "full";
   const base = env().APP_BASE_URL;
+  const booking = await getBookingSettings(ctx);
 
   return (
     <>
@@ -140,15 +144,39 @@ export default async function ConnectedAccountsPage({ searchParams }: { searchPa
         </div>
       </Card>
 
+      {booking && (
+        <Card title="Scheduling — Cal.com" className="mb-6" actions={
+          booking.status === "connected" ? <Badge tone="green" dot>Connected</Badge>
+            : booking.status === "waiting_for_test" ? <Badge tone="amber" dot>Waiting for Cal.com&apos;s test message</Badge>
+            : <Badge dot>Not connected</Badge>}>
+          <div className="space-y-5">
+            <p className="-mt-2 text-sm text-muted">
+              Customers book on your Cal.com page; Bluewater attaches each booking to the lead, marks it Booked, stops follow-up messages and
+              sends text confirmations and reminders. Cal.com stays the place where bookings are changed or cancelled.
+              {!booking.webhookConfigured && (isSimulatedEnvironment() || ctx.companyKind !== "customer") ? " Until Cal.com is connected you can try it with “Simulate a booking” on any lead (clearly labeled simulated)." : ""}
+            </p>
+            <BookingPageForm url={booking.bookingUrl} canManage={canManage} />
+            <div className="border-t border-line pt-4">
+              <p className="mb-2 text-sm font-medium">Automatic booking updates</p>
+              <dl className="mb-3 grid gap-3 text-sm sm:grid-cols-2">
+                <div><dt className="text-muted">Last message from Cal.com</dt><dd>{booking.lastEventAt ? formatInZone(booking.lastEventAt, ctx.timezone) : "—"}</dd></div>
+                {booking.lastError && <div><dt className="text-muted">Last problem</dt><dd className="text-red-700">{booking.lastError}{booking.lastErrorAt ? ` (${formatInZone(booking.lastErrorAt, ctx.timezone)})` : ""}</dd></div>}
+              </dl>
+              {canManage && <div className="flex flex-wrap items-start gap-3"><WebhookSetup configured={booking.webhookConfigured} />{booking.webhookConfigured && <DisconnectBooking />}</div>}
+            </div>
+          </div>
+        </Card>
+      )}
+
       <div className="grid gap-6 md:grid-cols-2">
         <Card title="Customer records (CRM)">
           <div className="flex items-start gap-3"><Database className="mt-0.5 size-5 text-brand-500" /><div><p className="font-medium">Bluewater built-in CRM <Badge tone="green">In use</Badge></p><p className="text-sm text-muted">Connections to outside CRMs are added for specific systems on request.</p></div></div>
         </Card>
-        <Card title="Scheduling">
-          {hasFeature(ctx.package, "booking")
-            ? <Unavailable icon={CalendarDays} name="Booking tool" what="Booking links, appointment updates and reminders." why="The first scheduling connection is being chosen and built." />
-            : <p className="text-sm text-muted">Booking links and appointment reminders are part of Package 2.</p>}
-        </Card>
+        {!hasFeature(ctx.package, "booking") && (
+          <Card title="Scheduling">
+            <div className="flex items-start gap-3"><CalendarDays className="mt-0.5 size-5 text-slate-400" /><p className="text-sm text-muted">Booking links, Cal.com connection and appointment reminders are part of Package 2.</p></div>
+          </Card>
+        )}
       </div>
     </>
   );

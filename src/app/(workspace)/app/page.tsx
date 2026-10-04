@@ -1,6 +1,6 @@
 import Link from "next/link";
 import {
-  AlertTriangle, ArrowDown, ArrowUp, CheckCircle2, Circle, DollarSign, Inbox, MailCheck, MailX, MessageSquareReply, MinusCircle, UserX,
+  AlertTriangle, ArrowDown, ArrowUp, CalendarDays, CheckCircle2, Circle, DollarSign, Inbox, MailCheck, MailX, MessageSquareReply, MinusCircle, Repeat, UserX,
 } from "lucide-react";
 import { Badge, Card, PageHeader, StatCard } from "@/components/ui";
 import { DailyChart } from "@/components/daily-chart";
@@ -8,7 +8,10 @@ import { StageBadge, money, sourceName } from "@/components/lead-bits";
 import { pageContext } from "@/lib/authz/guard";
 import { hasFeature } from "@/lib/authz/entitlements";
 import { roleCan } from "@/lib/authz/permissions";
-import { PERIOD_OPTIONS, parsePeriod } from "@/lib/periods";
+import { PERIOD_OPTIONS, parsePeriod, periodFor } from "@/lib/periods";
+import { activeFollowUps, stopActivity } from "@/server/sequences/manage";
+import { upcomingAppointments } from "@/server/booking/appointments";
+import { SourceBadge } from "@/components/appointment-bits";
 import { formatInZone, timezoneLabel } from "@/lib/timezones";
 import { overviewMetrics } from "@/server/metrics";
 import { onboardingChecklist, type StepStatus } from "@/server/onboarding";
@@ -34,7 +37,10 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
   const ctx = await pageContext("workspace.view");
   const sp = await searchParams;
   const days = parsePeriod(sp.days);
-  const [m, steps] = await Promise.all([overviewMetrics(ctx, days), onboardingChecklist(ctx)]);
+  const since = periodFor(days, ctx.timezone).start;
+  const [m, steps, follow, stops, upcoming] = await Promise.all([
+    overviewMetrics(ctx, days), onboardingChecklist(ctx), activeFollowUps(ctx, 5), stopActivity(ctx, since), upcomingAppointments(ctx, 7, 5),
+  ]);
   const done = steps.filter((s) => s.status === "ready" || s.status === "na").length;
   const change = m.inquiries.changePct;
 
@@ -74,6 +80,54 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
         <Link href="/app/conversations?filter=needs_reply" className="block"><StatCard icon={MessageSquareReply} label="Waiting for your reply" value={m.messaging.needsReply.toLocaleString("en-US")} tone="purple"
           note={m.messaging.medianFirstHumanSeconds == null ? "Conversations where the lead wrote last" : `Team's first reply typically ${duration(m.messaging.medianFirstHumanSeconds)} after an inquiry`} /></Link>
       </div>
+
+      {(follow || upcoming) && (
+        <div className="mt-6 grid gap-6 lg:grid-cols-3">
+          {follow && (
+            <Card title="Active follow-ups" actions={<Repeat className="size-5 text-brand-500" />}>
+              <p className="text-3xl font-bold tracking-tight">{follow.active.toLocaleString("en-US")}</p>
+              <p className="mb-3 text-xs text-muted">people receiving automatic follow-up now{follow.paused ? ` · ${follow.paused} paused` : ""}</p>
+              {follow.next.length > 0 && (
+                <ul className="space-y-1.5 text-sm">
+                  {follow.next.map((f) => (
+                    <li key={f.id} className="flex items-center justify-between gap-2">
+                      <Link href={`/app/leads/${f.inquiryId}`} className="truncate hover:text-brand-600">{f.name || "Unnamed lead"}</Link>
+                      <span className="shrink-0 text-xs text-muted">{f.status === "paused" ? "paused" : f.nextRunAt ? `step ${f.nextStep + 1} · ${formatInZone(f.nextRunAt, ctx.timezone, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : ""}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+          )}
+          {stops && (
+            <Card title={`Follow-up results · last ${days} days`}>
+              <p className="mb-3 text-sm"><span className="font-semibold">{stops.sent.toLocaleString("en-US")}</span> follow-up messages sent · <span className="font-semibold">{stops.completed}</span> finished all steps</p>
+              {stops.stopped.length === 0 ? <p className="text-sm text-muted">No follow-ups stopped early in this period.</p> : (
+                <ul className="space-y-1.5 text-sm">
+                  {stops.stopped.map((r) => <li key={r.code ?? r.label} className="flex justify-between gap-2"><span>{r.label}</span><span className="font-semibold tabular-nums">{r.n}</span></li>)}
+                </ul>
+              )}
+              <p className="mt-3 text-xs text-muted">Stopping early is good news when it&apos;s because they replied or booked.</p>
+            </Card>
+          )}
+          {upcoming && (
+            <Card title="Upcoming appointments" actions={<Link href="/app/appointments" className="text-sm font-medium text-brand-600 hover:underline">All</Link>}>
+              <p className="text-3xl font-bold tracking-tight">{upcoming.total.toLocaleString("en-US")}</p>
+              <p className="mb-3 text-xs text-muted">in the next 7 days</p>
+              {upcoming.next.length === 0 ? <p className="flex items-center gap-2 text-sm text-muted"><CalendarDays className="size-4" /> Nothing booked yet.</p> : (
+                <ul className="space-y-2 text-sm">
+                  {upcoming.next.map((a) => (
+                    <li key={a.id} className="flex items-center justify-between gap-2">
+                      <Link href={`/app/leads/${a.inquiryId}`} className="min-w-0 truncate hover:text-brand-600">{a.name || "Unnamed lead"}</Link>
+                      <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted">{formatInZone(a.startsAt, ctx.timezone, { weekday: "short", hour: "numeric", minute: "2-digit" })}{a.source === "simulated" && <SourceBadge source="simulated" />}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+          )}
+        </div>
+      )}
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <Card title="Lead activity" actions={<span className="text-xs text-muted">Inquiries per day</span>}>

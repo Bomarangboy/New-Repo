@@ -4,11 +4,12 @@ A web platform that helps client businesses respond to every advertising lead, f
 see what their advertising produces. Each client company gets its own secure workspace; Bluewater
 administrators manage all companies from a separate area.
 
-> **Status:** Stages 1–3 of 7 complete — accounts, security, company isolation, permissions, administrator
-> company management, built-in CRM, website form capture, CSV import/export, a dashboard from real data, and
-> **messaging**: automatic acknowledgments, a two-way inbox, opt-outs, team alerts and background jobs.
+> **Status:** Stages 1–4 of 7 complete — accounts, security, company isolation, permissions, administrator
+> company management, built-in CRM, website form capture, CSV import/export, a dashboard from real data,
+> **messaging** (automatic acknowledgments, two-way inbox, opt-outs, team alerts, background jobs) and
+> **Package 2**: multi-day follow-up sequences, Cal.com booking, appointments, confirmations and reminders.
 > All messaging is **simulated** (clearly labeled) until real Twilio/Postmark accounts exist and you approve
-> go-live. Follow-up sequences and booking are next. Nothing is deployed yet. See [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md).
+> go-live; Cal.com awaits a real account. Advertising connections (Meta/Google) are next. Nothing is deployed yet. See [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md).
 
 ## Documents
 
@@ -22,6 +23,7 @@ administrators manage all companies from a separate area.
 | [docs/PERMISSIONS.md](docs/PERMISSIONS.md) | Who can do what, per role, package and account status |
 | [docs/METRICS.md](docs/METRICS.md) | How every dashboard number is calculated |
 | [docs/MESSAGING.md](docs/MESSAGING.md) | How texts/emails are sent, stopped and received |
+| [docs/BOOKING.md](docs/BOOKING.md) | Cal.com connection, appointments, confirmations & reminders |
 | [docs/INTAKE.md](docs/INTAKE.md) | Connecting a client's website form (for web designers) |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Putting it online (Supabase + Vercel), domains, backups, rollback |
 | [docs/COSTS.md](docs/COSTS.md) | Expected running costs and assumptions |
@@ -75,7 +77,7 @@ src/app/admin         Bluewater administrator area (/admin/...)
 src/lib/auth          sign-in providers (Supabase for real; local for dev/tests)
 src/lib/authz         roles, packages, account status, the server-side gatekeeper
 src/lib/db            database schema, connection, the three guarded "doors"
-src/server            business logic (companies, team, CRM, intake, messaging, jobs, metrics, sample data)
+src/server            business logic (companies, team, CRM, intake, messaging, sequences, booking, jobs, metrics, sample data)
 drizzle/              database migrations (incl. row-level security)
 tests/                unit, integration (real database) and browser tests
 docs/                 everything above

@@ -16,7 +16,7 @@ the business — not an individual — owns them.
 | Twilio | Texting (subaccount per client) | You | Usage + monthly fees | Monthly | Owner email + 2FA; recovery code | twilio.com/help | **To create** |
 | Meta for Developers / Business Manager | Lead forms + ad reporting app | You (Business Manager admin) | Free | App review renewals | Business Manager admins (keep 2) | developers.facebook.com/support | **To create** (Stage 5) |
 | Google Cloud + Google Ads API | Ad reporting / lead forms | You | Free (API) | — | Google account 2FA | developers.google.com/google-ads/api/support | **To create** (Stage 5) |
-| Scheduling tool (e.g. Cal.com) | Booking connector | You / client | TBD (D‑10) | — | — | vendor | Decision pending |
+| Cal.com (one per client) | Client's booking page; webhooks to Bluewater | **The client** | Client's plan (free tier may suffice — verify) | — | Client's own login | cal.com/help | Per client, at onboarding |
 | Uptime monitor | Independent alerts | You | Free tier | — | — | vendor | **To create** (Stage 7) |
 | Error tracking (e.g. Sentry) | Error reports | You | Free tier | — | — | vendor | **To create** (Stage 7) |
 

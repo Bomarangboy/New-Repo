@@ -23,6 +23,9 @@ shows the time it was calculated. Values that have no data source yet show **"No
 | Team's first reply time | Median time from the inquiry to the first message a **person** sent that contact. | Kept separate from the automatic acknowledgment. Phone calls aren't tracked, so a lead called first looks slower. Imports excluded. |
 | Waiting for your reply | Conversations where the lead wrote last and nobody has replied or marked it handled. | Current count, not period-based. |
 | Team alerts | When the last alert email went out; failed alert emails in the period. | |
+| Active follow-ups (Package 2+) | People whose follow-up is running right now; paused ones listed separately. | Current count, not period-based. "Next message" times are when the next step is due — it is re-checked before sending, so it may not go out. |
+| Follow-up results | Follow-up messages accepted by the provider (or simulated) in the period; follow-ups that finished all steps in the period; follow-ups that stopped early in the period, by reason. | Events in the period (by when they happened, not when the lead arrived). Stopping because the person replied or booked is a good outcome. |
+| Upcoming appointments | Scheduled (not cancelled) appointments starting in the next 7 days, from Cal.com, entered by the team, or simulated (labeled). | Times shown in the company's timezone. |
 
 **What these numbers do not claim.** A lead's campaign details are shown only when they arrived with the
 inquiry (UTM tags, Google/Facebook click IDs, lead-form IDs). Many inquiries can't be linked to a specific ad;

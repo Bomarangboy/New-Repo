@@ -22,7 +22,7 @@ const STATUS: Record<string, { label: string; icon: typeof Check; tone: string }
   failed: { label: "Not delivered", icon: X, tone: "text-red-100" },
   unknown: { label: "Unconfirmed — being checked", icon: AlertTriangle, tone: "text-amber-100" },
 };
-const KIND: Record<string, string> = { acknowledgment: "Automatic acknowledgment", manual: "", auto_reply: "Automatic reply" };
+const KIND: Record<string, string> = { acknowledgment: "Automatic acknowledgment", manual: "", auto_reply: "Automatic reply", follow_up: "Automatic follow-up", booking_confirmation: "Booking confirmation", booking_reminder: "Appointment reminder" };
 
 export default async function ConversationPage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await pageContext("conversation.view", "inbox");

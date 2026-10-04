@@ -5,6 +5,8 @@ import { actionContext, requestId } from "@/lib/authz/guard";
 import { userMessage } from "@/lib/user-message";
 import type { FormState } from "@/components/forms";
 import { saveTemplate, setEmergencyPause, updateAutomationSettings } from "@/server/messaging/settings";
+import { STORED_TEMPLATE_KEYS } from "@/server/messaging/templates";
+import { UserError } from "@/lib/errors";
 
 const minutes = (v: FormDataEntryValue | null) => {
   const [h, m] = String(v ?? "").split(":").map(Number);
@@ -30,8 +32,10 @@ export async function saveSettingsAction(_: FormState, fd: FormData): Promise<Fo
 
 export async function saveTemplateAction(_: FormState, fd: FormData): Promise<FormState> {
   try {
-    const ctx = await actionContext("template.manage", "acknowledgment");
-    const key = fd.get("key") === "ack_email" ? "ack_email" : "ack_sms";
+    const key = STORED_TEMPLATE_KEYS.find((k) => k === fd.get("key"));
+    if (!key) throw new UserError("Unknown template.");
+    // Booking message wording is a Package 2 feature; the server checks, not just the page.
+    const ctx = await actionContext("template.manage", key.startsWith("booking_") ? "booking" : "acknowledgment");
     const v = await saveTemplate(ctx, key, { subject: String(fd.get("subject") ?? ""), body: String(fd.get("body") ?? "") }, await requestId());
     revalidatePath("/app/automations");
     return { ok: `Saved as version ${v}. Messages already sent keep the wording they were sent with.` };

@@ -1,7 +1,8 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { withSystemCompanyDb, withSystemDb } from "@/lib/db/context";
-import { companies, messages, suppressions } from "@/lib/db/schema";
+import { companies, contacts, messages, suppressions } from "@/lib/db/schema";
+import { stopEnrollments } from "@/server/sequences/stop";
 import { env } from "@/lib/env";
 
 /** Unsubscribe links in client emails: /u/<messageId>.<signature>. Signed, so they can't be forged or enumerated. */
@@ -38,7 +39,10 @@ export async function describeUnsubscribe(token: string): Promise<{ companyName:
 export async function confirmUnsubscribe(token: string): Promise<boolean> {
   const info = await describeUnsubscribe(token);
   if (!info) return false;
-  await withSystemCompanyDb(info.companyId, "unsubscribe: record", (tx) =>
-    tx.insert(suppressions).values({ companyId: info.companyId, channel: "email", address: info.email.toLowerCase(), reason: "unsubscribe_link" }).onConflictDoNothing());
+  await withSystemCompanyDb(info.companyId, "unsubscribe: record", async (tx) => {
+    await tx.insert(suppressions).values({ companyId: info.companyId, channel: "email", address: info.email.toLowerCase(), reason: "unsubscribe_link" }).onConflictDoNothing();
+    const [c] = await tx.select({ id: contacts.id }).from(contacts).where(and(eq(contacts.companyId, info.companyId), eq(contacts.emailNormalized, info.email.toLowerCase())));
+    if (c) await stopEnrollments(tx, info.companyId, { contactId: c.id }, "opted_out", "They unsubscribed by email link");
+  });
   return true;
 }

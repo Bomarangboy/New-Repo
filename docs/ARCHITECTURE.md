@@ -81,6 +81,11 @@ assignee, sale value, tracking, external IDs, automation eligibility; child of c
 (queued/sending/submitted/delivered/failed/unknown), `message_status_events` (append-only), `suppressions`
 and `notifications` — all with forced RLS. Rules: MESSAGING.md.
 
+Stage 4 added `sequences`, `sequence_steps` (versioned, append-only), `sequence_enrollments` (at most one open per
+contact), `booking_settings` (encrypted Cal.com webhook secret, hashed address), `appointments` (one row kept across
+reschedules) and `booking_events` (append-only webhook log) — all with forced RLS and composite company keys.
+Rules: MESSAGING.md (follow-ups) and BOOKING.md.
+
 ## Background processing (built in Stage 3, D‑07)
 
 - A job row is written **in the same transaction** as the event that causes it (e.g. new inquiry ⇒
@@ -128,8 +133,8 @@ forced to simulated mode in code (not just hidden in the interface).
 ## Known limitations (current)
 
 - Supabase Auth path is not yet verified against a live project (sandbox could not run Supabase locally).
-- Messaging is built (Stage 3) but only the simulated transport has been exercised; Twilio/Postmark paths
-  await accounts (see MESSAGING.md). Follow-up sequences, booking, ad reporting and demo prospect access are
-  not built yet (Stages 4–7).
+- Messaging (Stage 3) and follow-ups/booking (Stage 4) are built, but only the simulated transport and signed test
+  webhooks have been exercised; Twilio/Postmark/Cal.com paths await accounts (MESSAGING.md, BOOKING.md). Ad
+  reporting, external CRM and demo prospect access are not built yet (Stages 5–7).
 - No rate limiting on sign‑in beyond account lockout (local) / Supabase's built‑in limits; Stage 7 adds
   edge rate limiting for public endpoints.

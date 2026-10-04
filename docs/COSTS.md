@@ -33,6 +33,10 @@ Taxes, overages and price changes are not included. Nothing has been purchased.
 Assumptions: 10 clients × 100 leads/month × (1 acknowledgment + 3 follow‑ups) ≈ 4,000 SMS segments/month
 + replies + ~4,000 emails/month (fits Postmark Basic). SMS cost = 4,000 × (per‑segment price + carrier fee).
 
+## Booking (Package 2)
+Bluewater pays nothing for Cal.com: each client uses their own account. Follow‑ups and reminders add texts:
+the usage example above already assumes 3 follow‑ups per lead; add ~2 reminder texts per booked appointment.
+
 ## What could change these numbers
 More Vercel team members; higher database compute; PITR; dedicated email IPs (only at high volume);
 Package 3 adds no direct fees for Meta/Google APIs, but their approvals take time.

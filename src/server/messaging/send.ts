@@ -32,7 +32,7 @@ export interface NewOutbound {
   contactId: string;
   inquiryId?: string | null;
   channel: "sms" | "email";
-  kind: "acknowledgment" | "manual" | "auto_reply";
+  kind: "acknowledgment" | "manual" | "auto_reply" | "follow_up" | "booking_confirmation" | "booking_reminder";
   to: string;
   subject?: string | null;
   body: string;

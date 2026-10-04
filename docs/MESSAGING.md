@@ -1,8 +1,9 @@
-# Messaging rules (Stage 3)
+# Messaging rules (Stages 3–4)
 
 How Bluewater sends and receives texts and emails for client businesses. Code: `src/server/messaging/*`,
 `src/server/jobs/*`. Tests: `tests/unit/messaging-rules.test.ts`, `tests/integration/{messaging,webhooks}.test.ts`,
-`tests/e2e/stage3.spec.ts`.
+`tests/e2e/stage3.spec.ts`; follow‑ups: `src/server/sequences/*`, `tests/integration/sequences.test.ts`,
+`tests/e2e/stage4.spec.ts`. Booking confirmations/reminders: see BOOKING.md.
 
 ## Real vs simulated (D‑23)
 
@@ -33,6 +34,30 @@ database transaction** as the lead. Just before sending, the job re‑checks:
 
 Each inquiry can produce **at most one** acknowledgment (unique key in the database, proven with a
 concurrent‑worker test). Templates are versioned; each message records which version it used.
+
+## Follow‑up sequences (Package 2+, D‑26, D‑28)
+
+A sequence is up to 8 steps, each with a wait (from the start, then from the previous step; at least 1 hour),
+a channel (*text if permitted, otherwise email* · *text only* · *email only*) and wording checked by the same
+rules as other templates (fields, STOP wording, length). One sequence can start automatically for every new
+eligible website lead; a team member can also start one from a lead page (leads that didn't arrive live through
+a form need them to confirm the person asked to be contacted).
+
+- Each step is a background job. **Immediately before sending**, every rule is checked again: account active,
+  package includes follow‑ups, emergency stop off, sequence on, lead not Booked/Won/Lost, no appointment, no reply
+  since the follow‑up started, no team message (if that rule is on), no opt‑out, permission for the channel,
+  sending hours (waits for the window).
+- **Stops for good** (D‑28) on: reply · booking · opt‑out (STOP, unsubscribe link, recorded by staff, spam
+  complaint) · Booked/Won/Lost · team message (configurable) · sequence turned off · emergency stop · package
+  without follow‑ups · account paused/suspended/ended. The stop is recorded the moment it happens *and* re‑checked
+  before every step, so a missed signal still can't cause a send.
+- A step that can't be sent on its channel (e.g. no text permission) is **skipped** and recorded — never sent
+  another way. After the last step, if no one replied, a call‑back task is created for the assigned person (optional).
+- At most one message per step (unique key `seq:<enrollment>:<step>`); the move to the next step happens in the
+  same transaction that creates the message, and a crashed send is finished on retry. Proven by tests, including
+  three workers running the same step at once.
+- Pause holds the next step; resume continues with it (at its original time, or a minute later if that passed).
+- Editing creates a new version; people already enrolled finish the version they started (D‑26).
 
 ## Message states (D‑25)
 

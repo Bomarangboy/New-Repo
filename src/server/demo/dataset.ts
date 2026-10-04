@@ -1,6 +1,9 @@
-import { and, eq, gt, sql } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, sql } from "drizzle-orm";
 import type { Tx } from "@/lib/db/client";
-import { contacts, conversations, inquiries, inquiryEvents, intakeSources, messages, notes, suppressions, tasks } from "@/lib/db/schema";
+import { appointments, companies, contacts, conversations, inquiries, inquiryEvents, intakeSources, messages, notes, sequenceEnrollments, sequenceSteps, sequences, suppressions, tasks } from "@/lib/db/schema";
+import { hasFeature } from "@/lib/authz/entitlements";
+import { enqueue } from "@/server/jobs/queue";
+import { DEFAULT_SEQUENCE_STEPS, renderTemplate } from "@/server/messaging/templates";
 import { newToken } from "@/lib/crypto";
 import { recordInquiry, type InquirySource } from "@/server/crm/record-inquiry";
 
@@ -107,6 +110,8 @@ export async function generateDemoDataset(tx: Tx, o: DatasetOptions) {
     }
   }
   await sampleConversations(tx, o.companyId, now, rand, pick);
+  const [co] = await tx.select({ package: companies.package, name: companies.name }).from(companies).where(eq(companies.id, o.companyId));
+  if (co && hasFeature(co.package, "sequences")) await sampleFollowUpsAndBookings(tx, o.companyId, co.name, now, rand);
   return { created };
 }
 
@@ -158,4 +163,85 @@ async function sampleConversations(tx: Tx, companyId: string, now: Date, rand: (
     await tx.update(conversations).set({ lastMessageAt: last, lastInboundAt: lastInbound, lastHumanOutboundAt: lastHuman, needsReply }).where(eq(conversations.id, conv.id));
   }
   void pick;
+}
+
+/**
+ * Package 2+ sample data: one follow-up sequence (on, automatic), follow-ups at every stage (running,
+ * finished, stopped because the person replied or booked), and SIMULATED appointments for booked and
+ * won leads. No booking tool is connected — appointments are labeled "simulated" everywhere.
+ */
+async function sampleFollowUpsAndBookings(tx: Tx, companyId: string, companyName: string, now: Date, rand: () => number) {
+  const DAY = 86_400_000, MIN = 60_000;
+  const [seq] = await tx.insert(sequences).values({ companyId, name: "New lead follow-up", status: "active", autoEnroll: true, currentVersion: 1 }).returning();
+  await tx.insert(sequenceSteps).values(DEFAULT_SEQUENCE_STEPS.map((st, position) => ({ companyId, sequenceId: seq!.id, version: 1, position, ...st })));
+  const delays = DEFAULT_SEQUENCE_STEPS.map((x) => x.delayMinutes * MIN);
+
+  const leads = await tx.select({ i: inquiries, c: contacts }).from(inquiries).innerJoin(contacts, eq(contacts.id, inquiries.contactId))
+    .where(and(eq(inquiries.companyId, companyId), gt(inquiries.submittedAt, new Date(now.getTime() - 20 * DAY)), inArray(inquiries.source, ["website_form", "meta_lead_form", "google_lead_form"])))
+    .orderBy(asc(inquiries.submittedAt));
+  const seen = new Set<string>();
+  for (const { i, c } of leads) {
+    if (seen.has(c.id)) continue; // one follow-up per person
+    seen.add(c.id);
+    const start = new Date(i.receivedAt.getTime() + 60_000);
+    const [conv] = await tx.select().from(conversations).where(eq(conversations.contactId, c.id));
+    const [reply] = await tx.select({ at: messages.createdAt }).from(messages).where(and(eq(messages.contactId, c.id), eq(messages.direction, "inbound"))).limit(1);
+    const channel = c.phoneE164 ? "sms" : c.email ? "email" : null;
+    if (!conv || !channel) continue;
+    const vars = { first_name: c.fullName.split(" ")[0] ?? "", company_name: companyName, service: i.serviceRequested ?? "" };
+    const sendStep = async (k: number, at: Date) => {
+      const st = DEFAULT_SEQUENCE_STEPS[k]!;
+      await tx.insert(messages).values({
+        companyId, conversationId: conv.id, contactId: c.id, inquiryId: i.id, direction: "outbound", channel, kind: "follow_up", status: "delivered",
+        toAddress: channel === "sms" ? c.phoneE164! : c.email!, transport: "simulated", providerMessageId: `sim_seed_${crypto.randomUUID()}`,
+        subject: channel === "email" ? renderTemplate(st.emailSubject, vars) : null, body: renderTemplate(channel === "sms" ? st.smsBody : st.emailBody, vars),
+        idempotencyKey: `seq:sample:${i.id}:${k}`, templateKey: `sequence:${seq!.id}:step${k + 1}`, templateVersion: 1, createdAt: at, submittedAt: at, deliveredAt: at, statusUpdatedAt: at,
+      });
+    };
+    const base = { companyId, sequenceId: seq!.id, version: 1, inquiryId: i.id, contactId: c.id, origin: "auto", enrolledAt: start, createdAt: start };
+    // When each step would have gone out.
+    const at: Date[] = [];
+    delays.reduce((t, d) => { const x = new Date(t.getTime() + d); at.push(x); return x; }, start);
+    const sentBefore = (limit: Date) => at.filter((x) => x < limit && x < now).length;
+
+    if (reply || i.stage === "booked" || i.stage === "won" || i.stage === "lost") {
+      const end = reply ? reply.at : i.stageChangedAt;
+      const k = sentBefore(end);
+      for (let s = 0; s < k; s++) await sendStep(s, at[s]!);
+      const code = reply ? "replied" : i.stage === "booked" ? "booked" : "closed";
+      await tx.insert(sequenceEnrollments).values({ ...base, status: "stopped", nextStep: k, stopCode: code, endedAt: end,
+        stopReason: code === "replied" ? "They replied" : code === "booked" ? "They booked an appointment" : `The lead was marked ${i.stage}` });
+    } else if (at[at.length - 1]! < now) {
+      for (let s = 0; s < at.length; s++) await sendStep(s, at[s]!);
+      await tx.insert(sequenceEnrollments).values({ ...base, status: "completed", nextStep: at.length, endedAt: at[at.length - 1]! });
+    } else {
+      const next = sentBefore(now);
+      for (let s = 0; s < next; s++) await sendStep(s, at[s]!);
+      const runAt = at[next]!;
+      const paused = rand() < 0.1;
+      const [e] = await tx.insert(sequenceEnrollments).values({ ...base, status: paused ? "paused" : "active", nextStep: next, nextRunAt: runAt, pausedAt: paused ? new Date(now.getTime() - 3600_000) : null }).returning();
+      if (!paused) await enqueue(tx, { companyId, kind: "sequence_step", key: `seq:${e!.id}:${next}`, payload: { enrollmentId: e!.id, step: next }, runAt });
+    }
+  }
+
+  // Simulated appointments: booked leads get one (mostly upcoming); some won leads had one in the past.
+  const booked = await tx.select().from(inquiries).where(and(eq(inquiries.companyId, companyId), inArray(inquiries.stage, ["booked", "won"]), gt(inquiries.stageChangedAt, new Date(now.getTime() - 30 * DAY))));
+  for (const i of booked) {
+    if (i.stage === "won" && rand() < 0.5) continue;
+    let startsAt = new Date(i.stageChangedAt.getTime() + (1 + Math.floor(rand() * 6)) * DAY);
+    startsAt.setUTCHours(13 + Math.floor(rand() * 8), rand() < 0.5 ? 0 : 30, 0, 0);
+    if (i.stage === "booked" && startsAt < now) startsAt = new Date(now.getTime() + (1 + Math.floor(rand() * 9)) * DAY), startsAt.setUTCHours(13 + Math.floor(rand() * 8), 0, 0, 0);
+    const status = startsAt > now ? "scheduled" : i.stage === "won" ? "completed" : rand() < 0.8 ? "completed" : "no_show";
+    const [a] = await tx.insert(appointments).values({
+      companyId, inquiryId: i.id, contactId: i.contactId, source: "simulated", externalId: `sim_seed_${crypto.randomUUID()}`, status, startsAt,
+      endsAt: new Date(startsAt.getTime() + 3600_000), title: i.serviceRequested ? `Estimate: ${i.serviceRequested}` : "Estimate visit", lastEventAt: i.stageChangedAt, createdAt: i.stageChangedAt,
+    }).returning();
+    await tx.insert(inquiryEvents).values({ companyId, inquiryId: i.id, type: "appointment_booked", actorType: "system", details: { appointmentId: a!.id, startsAt: startsAt.toISOString(), source: "simulated", sample: true }, createdAt: i.stageChangedAt });
+    if (status === "scheduled") {
+      for (const off of [1440, 120]) {
+        const runAt = new Date(startsAt.getTime() - off * MIN);
+        if (runAt > now) await enqueue(tx, { companyId, kind: "booking_message", key: `bremind:${a!.id}:${off}:${startsAt.getTime()}`, payload: { appointmentId: a!.id, startsAt: startsAt.toISOString(), type: "reminder", offsetMinutes: off }, runAt });
+      }
+    }
+  }
 }

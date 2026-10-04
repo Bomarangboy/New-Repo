@@ -4,10 +4,11 @@ import { z } from "zod";
 import { withPlatformDb, withSystemDb } from "@/lib/db/context";
 import { companies, lifecycleHistory, memberships, packageHistory, supportAccessGrants, users } from "@/lib/db/schema";
 import { audit } from "@/lib/audit";
-import { PACKAGES, type PackageTier } from "@/lib/authz/entitlements";
+import { hasFeature, PACKAGES, type PackageTier } from "@/lib/authz/entitlements";
 import type { LifecycleStatus } from "@/lib/authz/account-policy";
 import type { PlatformContext } from "@/lib/authz/context-types";
 import { isValidTimezone } from "@/lib/timezones";
+import { stopEnrollments } from "@/server/sequences/stop";
 
 /* Platform-administrator operations on client companies. */
 
@@ -102,7 +103,10 @@ export async function changePackage(ctx: PlatformContext, companyId: string, to:
       companyId, actorUserId: ctx.userId, actorType: "platform_admin", action: "company.package_changed",
       targetType: "company", targetId: companyId, details: { from: c.package, to, note }, requestId,
     });
-    // Stage 4 will hook downgrade handling here (pausing sequences the new package no longer includes).
+    // A package without follow-ups ends the ones in progress (they are not resumed on a later upgrade).
+    if (!hasFeature(to, "sequences")) {
+      await stopEnrollments(tx, companyId, { allInCompany: true }, "package", "The package no longer includes follow-up sequences", { userId: ctx.userId, type: "system" });
+    }
     return updated!;
   });
 }
@@ -128,6 +132,7 @@ export async function changeLifecycle(
     }
     const [updated] = await tx.update(companies).set(patch).where(eq(companies.id, companyId)).returning();
     await tx.insert(lifecycleHistory).values({ companyId, fromStatus: c.lifecycleStatus, toStatus: to, reason: opts.reason ?? null, changedByUserId: ctx.userId });
+    if (to !== "active") await stopEnrollments(tx, companyId, { allInCompany: true }, "account", `Account status changed to ${to}`, { userId: ctx.userId, type: "system" });
     await audit(tx, {
       companyId, actorUserId: ctx.userId, actorType: "platform_admin",
       action: c.lifecycleStatus === "churned" && to === "onboarding" ? "company.reactivated" : "company.lifecycle_changed",
@@ -143,6 +148,7 @@ export async function setSuspended(ctx: PlatformContext, companyId: string, susp
     const [updated] = await tx.update(companies).set({ suspended, suspendedReason: suspended ? reason : null })
       .where(eq(companies.id, companyId)).returning();
     if (!updated) throw new UserError("Company not found");
+    if (suspended) await stopEnrollments(tx, companyId, { allInCompany: true }, "account", "The account was suspended", { userId: ctx.userId, type: "system" });
     await audit(tx, {
       companyId, actorUserId: ctx.userId, actorType: "platform_admin",
       action: suspended ? "company.suspended" : "company.unsuspended", targetType: "company", targetId: companyId, details: { reason }, requestId,
@@ -225,6 +231,7 @@ export async function applyDueCancellations(now = new Date()): Promise<number> {
     )).for("update");
     for (const c of due) {
       await tx.update(companies).set({ lifecycleStatus: "churned" }).where(eq(companies.id, c.id));
+      await stopEnrollments(tx, c.id, { allInCompany: true }, "account", "Service ended (scheduled cancellation)");
       await tx.insert(lifecycleHistory).values({ companyId: c.id, fromStatus: c.lifecycleStatus, toStatus: "churned", reason: `Scheduled cancellation: ${c.churnReason ?? ""}` });
       await audit(tx, { companyId: c.id, actorUserId: null, actorType: "system", action: "company.lifecycle_changed", targetType: "company", targetId: c.id, details: { from: c.lifecycleStatus, to: "churned", reason: "scheduled cancellation" } });
     }

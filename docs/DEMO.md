@@ -1,6 +1,6 @@
 # Sales Demo Environment
 
-**Status:** foundation (Stage 1) + sample dataset v1 (Stage 2) + simulated conversations (Stage 3). The full demo — sample dataset, prospect access, presentation
+**Status:** foundation (Stage 1) + sample dataset v1 (Stage 2) + simulated conversations (Stage 3) + follow‑ups and simulated appointments (Stage 4). The full demo — sample dataset, prospect access, presentation
 controls, guided tour — is built alongside Stages 2–5. Nothing in the demo is evidence that a live
 integration works.
 
@@ -30,6 +30,15 @@ prospect workspaces exist.
   code as a real incoming text.
 - The server forces the simulated transport for demo, test and development, and for demo company kinds
   everywhere (tested); it is not a setting someone can flip in the interface.
+
+## Follow‑ups and bookings (Stage 4)
+- Package 2+ sample companies have a "New lead follow‑up" sequence (on, automatic) and follow‑ups in every state:
+  running, paused, finished, and stopped because the person replied, booked or the lead closed.
+- Booked and some won leads have **simulated** appointments (badge "Simulated"); upcoming ones have reminders
+  queued, which go through the simulated transport.
+- **Simulate a booking** on any lead (and **Simulate cancellation** on Appointments) shows the whole booking flow —
+  lead moves to Booked, follow‑up stops, confirmation text, team alert — using the same code as a real Cal.com
+  webhook. Cal.com itself shows "Not connected"; the demo never claims a live connection.
 
 ## Planned design
 - Hosted separately at `demo.yourdomain.com` with its **own Supabase project and Vercel project** — no

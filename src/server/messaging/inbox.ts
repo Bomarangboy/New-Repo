@@ -11,6 +11,8 @@ import { activeSuppression, latestConsent } from "./eligibility";
 import { createOutbound, deliver } from "./send";
 import { transportDecision } from "./transport";
 import { handleInbound } from "./inbound";
+import { stopEnrollments } from "@/server/sequences/stop";
+import { sequenceEnrollments, sequences } from "@/lib/db/schema";
 
 function need(ctx: CompanyContext, action: Action) {
   if (!roleCan(ctx.role, action)) throw new UserError("You don't have permission to do that.");
@@ -110,6 +112,10 @@ export async function sendManualMessage(ctx: CompanyContext, input: { conversati
       idempotencyKey: `manual:${input.clientKey}`, sentByUserId: ctx.userId, transport, companyName: ctx.companyName,
     });
     if (created) {
+      // A person took over: stop follow-ups whose sequence says so.
+      const following = await tx.select({ id: sequenceEnrollments.id }).from(sequenceEnrollments).innerJoin(sequences, eq(sequences.id, sequenceEnrollments.sequenceId))
+        .where(and(eq(sequenceEnrollments.contactId, row.contact.id), sql`${sequenceEnrollments.status} in ('active','paused')`, eq(sequences.stopOnManualMessage, true)));
+      for (const e of following) await stopEnrollments(tx, ctx.companyId, { enrollmentId: e.id }, "manual_message", "A team member messaged them", { userId: ctx.userId, type: ctx.supportGrantId ? "support" : "user" });
       // First human contact moves a New lead to Contacted.
       const [open] = await tx.select().from(inquiries).where(and(eq(inquiries.contactId, row.contact.id), eq(inquiries.stage, "new"))).orderBy(desc(inquiries.submittedAt)).limit(1);
       if (open) {
@@ -131,6 +137,7 @@ export async function recordOptOut(ctx: CompanyContext, conversationId: string, 
     const address = channel === "sms" ? row.contact.phoneE164 : row.contact.emailNormalized;
     if (!address) throw new UserError("There's no address on file for that channel.");
     await tx.insert(suppressions).values({ companyId: ctx.companyId, channel, address, reason: "manual", detail: cleanText(detail, 200) ?? "Recorded by staff", createdByUserId: ctx.userId }).onConflictDoNothing();
+    await stopEnrollments(tx, ctx.companyId, { contactId: row.contact.id }, "opted_out", "Opt-out recorded by a team member", { userId: ctx.userId, type: ctx.supportGrantId ? "support" : "user" });
     await audit(tx, { companyId: ctx.companyId, actorUserId: ctx.userId, actorType: ctx.supportGrantId ? "support" : "user", action: "contact.opted_out", targetType: "contact", targetId: row.contact.id, details: { channel }, requestId });
   });
 }

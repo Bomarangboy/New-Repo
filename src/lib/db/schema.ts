@@ -619,7 +619,7 @@ export const messages = app.table(
     inquiryId: uuid("inquiry_id"),
     direction: text("direction").notNull(), // outbound | inbound
     channel: text("channel").notNull(), // sms | email
-    kind: text("kind").notNull(), // acknowledgment | manual | inbound | auto_reply
+    kind: text("kind").notNull(), // acknowledgment | manual | inbound | auto_reply | follow_up | booking_confirmation | booking_reminder
     /**
      * outbound: queued → sending → submitted → delivered | failed | unknown (uncertain; needs review) | skipped
      * inbound: received
@@ -701,16 +701,189 @@ export const notifications = app.table(
     id: uuid("id").primaryKey().defaultRandom(),
     companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
     userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-    kind: text("kind").notNull(), // new_lead | reply | ack_problem
+    kind: text("kind").notNull(), // new_lead | reply | ack_problem | booking_created | booking_rescheduled | booking_cancelled | follow_up_finished
     inquiryId: uuid("inquiry_id"),
     conversationId: uuid("conversation_id"),
+    /** Distinguishes repeat events of one kind for the same lead (e.g. a second reschedule). */
+    refKey: text("ref_key"),
     title: text("title").notNull(),
     emailStatus: text("email_status").notNull(), // sent | failed | skipped
     readAt: timestamp("read_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    uniqueIndex("notifications_once_key").on(t.companyId, t.userId, t.kind, t.inquiryId, t.conversationId),
+    uniqueIndex("notifications_once_key").on(t.companyId, t.userId, t.kind, t.inquiryId, t.conversationId, t.refKey),
     index("notifications_user_idx").on(t.userId, t.readAt),
   ],
+);
+
+/* =====================================================================================
+ * Stage 4: follow-up sequences, booking and appointments (Package 2+)
+ * ===================================================================================== */
+
+/**
+ * A multi-step follow-up sequence. Editing creates a new VERSION of its steps; people already
+ * enrolled finish the version they started on (D-26), so a change never alters a message mid-flight.
+ */
+export const sequences = app.table(
+  "sequences",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    status: text("status").notNull().default("active"), // active | off
+    /** New eligible website leads are enrolled automatically (at most one such sequence per company). */
+    autoEnroll: boolean("auto_enroll").notNull().default(false),
+    currentVersion: integer("current_version").notNull().default(1),
+    /** Stop when a team member messages the lead by hand (the person has taken over). */
+    stopOnManualMessage: boolean("stop_on_manual_message").notNull().default(true),
+    /** When the last step is sent without any reply, create a call-back task for the assigned person. */
+    handoffTask: boolean("handoff_task").notNull().default(true),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [
+    unique("sequences_company_id_key").on(t.companyId, t.id),
+    uniqueIndex("sequences_one_auto_enroll").on(t.companyId).where(sql`${t.autoEnroll} and ${t.status} = 'active'`),
+  ],
+);
+
+export const sequenceSteps = app.table(
+  "sequence_steps",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    sequenceId: uuid("sequence_id").notNull(),
+    version: integer("version").notNull(),
+    /** 0-based order within the version. */
+    position: integer("position").notNull(),
+    /** Wait after enrollment (first step) or after the previous step. */
+    delayMinutes: integer("delay_minutes").notNull(),
+    channel: text("channel").notNull(), // sms | email | sms_or_email
+    smsBody: text("sms_body"),
+    emailSubject: text("email_subject"),
+    emailBody: text("email_body"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    foreignKey({ columns: [t.companyId, t.sequenceId], foreignColumns: [sequences.companyId, sequences.id], name: "sequence_steps_sequence_fk" }).onDelete("cascade"),
+    uniqueIndex("sequence_steps_position_key").on(t.sequenceId, t.version, t.position),
+  ],
+);
+
+/** One person's progress through a sequence for one inquiry. */
+export const sequenceEnrollments = app.table(
+  "sequence_enrollments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    sequenceId: uuid("sequence_id").notNull(),
+    version: integer("version").notNull(),
+    inquiryId: uuid("inquiry_id").notNull(),
+    contactId: uuid("contact_id").notNull(),
+    status: text("status").notNull().default("active"), // active | paused | completed | stopped
+    /** Index of the next step to send. */
+    nextStep: integer("next_step").notNull().default(0),
+    nextRunAt: timestamp("next_run_at", { withTimezone: true }),
+    origin: text("origin").notNull(), // auto | manual
+    enrolledByUserId: uuid("enrolled_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    enrolledAt: timestamp("enrolled_at", { withTimezone: true }).notNull().defaultNow(),
+    pausedAt: timestamp("paused_at", { withTimezone: true }),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+    /** Plain-language reason it stopped (reply, booking, opt-out, …). */
+    stopReason: text("stop_reason"),
+    stopCode: text("stop_code"), // replied | booked | opted_out | closed | manual_message | stopped_by_user | account | paused_all | package | sequence_off | sending_off
+    ...timestamps,
+  },
+  (t) => [
+    unique("sequence_enrollments_company_id_key").on(t.companyId, t.id),
+    foreignKey({ columns: [t.companyId, t.sequenceId], foreignColumns: [sequences.companyId, sequences.id], name: "enrollments_sequence_fk" }).onDelete("cascade"),
+    foreignKey({ columns: [t.companyId, t.inquiryId], foreignColumns: [inquiries.companyId, inquiries.id], name: "enrollments_inquiry_fk" }).onDelete("cascade"),
+    foreignKey({ columns: [t.companyId, t.contactId], foreignColumns: [contacts.companyId, contacts.id], name: "enrollments_contact_fk" }).onDelete("cascade"),
+    /** A person is in at most one running follow-up at a time. */
+    uniqueIndex("enrollments_one_open_per_contact").on(t.companyId, t.contactId).where(sql`${t.status} in ('active','paused')`),
+    index("enrollments_company_status_idx").on(t.companyId, t.status, t.nextRunAt),
+    index("enrollments_inquiry_idx").on(t.inquiryId),
+  ],
+);
+
+/** Booking tool connection and reminder settings (Cal.com, D-10). */
+export const bookingSettings = app.table(
+  "booking_settings",
+  {
+    companyId: uuid("company_id").primaryKey().references(() => companies.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull().default("calcom"),
+    /** Public booking page, e.g. https://cal.com/harbor-home/estimate */
+    bookingUrl: text("booking_url"),
+    /** Webhook signing secret (Bluewater generates it; the client pastes it into Cal.com). Encrypted. */
+    webhookSecretEnc: text("webhook_secret_enc"),
+    /** SHA-256 of the secret path segment in the webhook address. */
+    webhookKeyHash: text("webhook_key_hash"),
+    status: text("status").notNull().default("not_connected"), // not_connected | waiting_for_test | connected | error
+    lastEventAt: timestamp("last_event_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    lastErrorAt: timestamp("last_error_at", { withTimezone: true }),
+    confirmationsEnabled: boolean("confirmations_enabled").notNull().default(true),
+    remindersEnabled: boolean("reminders_enabled").notNull().default(true),
+    /** Minutes before the appointment. */
+    reminderOffsetsMinutes: jsonb("reminder_offsets_minutes").$type<number[]>().notNull().default([1440, 120]),
+    /** Cal.com already emails confirmations; Bluewater emails only if this is on. Texts are Bluewater's. */
+    emailAlso: boolean("email_also").notNull().default(false),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("booking_settings_webhook_key").on(t.webhookKeyHash).where(sql`${t.webhookKeyHash} is not null`)],
+);
+
+export const appointments = app.table(
+  "appointments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    inquiryId: uuid("inquiry_id").notNull(),
+    contactId: uuid("contact_id").notNull(),
+    /** calcom (Cal.com is authoritative) | manual (entered by the team; Bluewater is authoritative) | simulated */
+    source: text("source").notNull(),
+    externalId: text("external_id"),
+    /** Earlier booking ids replaced by reschedules; late events about them are ignored. */
+    replacedExternalIds: jsonb("replaced_external_ids").$type<string[]>().notNull().default([]),
+    status: text("status").notNull().default("scheduled"), // scheduled | cancelled | completed | no_show
+    startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+    endsAt: timestamp("ends_at", { withTimezone: true }),
+    title: text("title"),
+    location: text("location"),
+    attendeeTimezone: text("attendee_timezone"),
+    /** Time of the newest provider event applied; older (out-of-order) events are ignored. */
+    lastEventAt: timestamp("last_event_at", { withTimezone: true }),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    cancellationReason: text("cancellation_reason"),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [
+    unique("appointments_company_id_key").on(t.companyId, t.id),
+    foreignKey({ columns: [t.companyId, t.inquiryId], foreignColumns: [inquiries.companyId, inquiries.id], name: "appointments_inquiry_fk" }).onDelete("cascade"),
+    foreignKey({ columns: [t.companyId, t.contactId], foreignColumns: [contacts.companyId, contacts.id], name: "appointments_contact_fk" }).onDelete("cascade"),
+    uniqueIndex("appointments_external_key").on(t.companyId, t.source, t.externalId).where(sql`${t.externalId} is not null`),
+    index("appointments_company_start_idx").on(t.companyId, t.startsAt),
+    index("appointments_inquiry_idx").on(t.inquiryId),
+  ],
+);
+
+/** Every booking-tool webhook as received (append-only). Identical re-deliveries are ignored. */
+export const bookingEvents = app.table(
+  "booking_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull(),
+    triggerEvent: text("trigger_event").notNull(),
+    externalId: text("external_id"),
+    bodyHash: text("body_hash").notNull(),
+    outcome: text("outcome").notNull(), // created | rescheduled | cancelled | ignored_stale | ignored_unknown | ping | error
+    detail: text("detail"),
+    appointmentId: uuid("appointment_id"),
+    eventCreatedAt: timestamp("event_created_at", { withTimezone: true }),
+    receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("booking_events_once_key").on(t.companyId, t.bodyHash), index("booking_events_company_idx").on(t.companyId, t.receivedAt)],
 );

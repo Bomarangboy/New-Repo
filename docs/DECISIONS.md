@@ -19,7 +19,7 @@ Status key: **Decided** (owner approved) · **Assumed** (reasonable default; rev
 | D‑07 | Background jobs | **Assumed** — Postgres job table + Supabase Cron trigger | Stage 3 |
 | D‑08 | Email provider | **Assumed** — Postmark | Live email |
 | D‑09 | SMS provider | **Assumed** — Twilio (subaccount per client) | Live SMS |
-| D‑10 | Calendar / booking connector | **Decided** — Cal.com | Stage 4 |
+| D‑10 | Calendar / booking connector | **Decided** — Cal.com (built Stage 4; live check pending) | — |
 | D‑11 | First external CRM connector | **Open** — wait for first client | Stage 6 |
 | D‑12 | Environments | **Assumed** — dev, staging, demo, production | Deployment |
 | D‑13 | Budgets | **Decided** — about $100/month total | Purchases |
@@ -35,6 +35,11 @@ Status key: **Decided** (owner approved) · **Assumed** (reasonable default; rev
 | D‑23 | Where real messages may be sent from | **Assumed** — production only | — |
 | D‑24 | Acknowledgment channel & timing | **Assumed** — text if permitted, else email; sending window | — |
 | D‑25 | Uncertain sends | **Assumed** — never auto‑retry; mark "unknown" for review | — |
+| D‑26 | Editing a running follow-up | **Assumed** — edits create a new version; people already enrolled finish the old one | — |
+| D‑27 | Confirmations/reminders vs Cal.com's own | **Assumed** — Bluewater texts; Cal.com emails (Bluewater emails only if owner opts in) | — |
+| D‑28 | Stopped follow-ups | **Assumed** — never restart automatically (incl. after emergency stop, cancellation, upgrade) | — |
+| D‑29 | Which system owns appointments | **Assumed** — Cal.com for its bookings; Bluewater for ones the team enters | — |
+| D‑30 | Booking from an unknown person | **Assumed** — recorded as a new lead ("Cal.com booking"), never auto‑messaged except confirmations/reminders | — |
 
 ---
 
@@ -118,7 +123,12 @@ Status key: **Decided** (owner approved) · **Assumed** (reasonable default; rev
   Registration review typically takes days to weeks.
 - Per‑message US price: **not verified** (pricing page blocked here) — check [twilio.com/en-us/sms/pricing/us](https://www.twilio.com/en-us/sms/pricing/us).
 
-### D‑10 Calendar / booking connector — Decided: Cal.com (owner, 2026‑10‑04)
+### D‑10 Calendar / booking connector — Decided: Cal.com (owner, 2026‑10‑04; built in Stage 4)
+- **Built:** per‑client webhook address + signing secret (Bluewater generates both; the client pastes them into
+  Cal.com), signature verified as Cal.com computes it (HMAC‑SHA256 of the body, hex, header `X-Cal-Signature-256`
+  — confirmed in Cal.com's open‑source code, `packages/features/webhooks/lib/sendPayload.ts`). Booking links carry
+  `metadata[bw]=<reference>` so bookings attach to the right lead. **Awaiting live verification** with a real
+  Cal.com account (in particular that `metadata[...]` URL parameters arrive in the webhook's `metadata`).
 - **Recommendation:** **Cal.com** — documented webhooks for booking created/rescheduled/cancelled with an
   HMAC signature header (`X-Cal-Signature-256`) ([docs](https://cal.com/docs/developing/guides/automation/webhooks)).
 - **Alternatives:** Calendly (webhooks require a paid Calendly plan — verify), Google Calendar directly
@@ -218,3 +228,34 @@ Each extra Supabase project adds compute cost (one Micro is covered by the inclu
 - If a send attempt is interrupted after it may have reached the provider (timeout, crash), the message is marked
   **unknown** and is never retried automatically (a duplicate text is worse than a delayed one). It appears in the
   administrator's messaging health list for a person to check with the provider and resolve.
+
+### D‑26 Editing a running follow‑up sequence — Assumed (Stage 4)
+- Saving changed steps creates a new **version**. People already in the sequence finish the version they started
+  (they never get a half‑old, half‑new series, and what they were sent stays explainable); new enrollments use the
+  new version. Renaming or changing stop rules doesn't create a version and applies immediately. Turning a sequence
+  **off** stops everyone in it.
+
+### D‑27 Confirmations and reminders alongside Cal.com — Assumed (Stage 4)
+- Cal.com already emails attendees a confirmation. To avoid duplicates, Bluewater sends **texts** (only with text
+  permission) and emails Cal.com bookings only if the owner ticks "also email". Appointments the team enters by hand
+  get an email when a text isn't allowed. Defaults: confirmation right away, reminders 24 h and 2 h before. A reminder
+  that can't go out inside sending hours at least 30 minutes before the appointment is skipped.
+
+### D‑28 Stopped follow‑ups never restart — Assumed (Stage 4)
+- A follow‑up stops for good when the person replies, books, opts out (text STOP, unsubscribe link, recorded by
+  staff, spam complaint), the lead is marked Booked/Won/Lost, a team member messages them (configurable), the
+  sequence is turned off, the emergency stop is used, the package no longer includes follow‑ups, or the account
+  stops being active. Nothing restarts it automatically — including turning automation back on, cancelling the
+  appointment or upgrading again. A team member can start a new one from the lead page.
+- Leads that didn't arrive live through a connected form (manual, import, booking) can only be enrolled by a person
+  who confirms the person asked to be contacted (recorded in the lead's history).
+
+### D‑29 Which system owns appointments — Assumed (Stage 4)
+- Cal.com is the record for bookings made there: reschedules/cancellations are done in Cal.com and arrive by webhook
+  (Bluewater refuses to cancel them locally, because the customer wouldn't be told). Appointments the team enters
+  (phone, in person) are owned by Bluewater. "Completed" and "No‑show" are Bluewater's own outcome notes for both.
+
+### D‑30 Booking from someone Bluewater doesn't know — Assumed (Stage 4)
+- Matching order: the reference in the booking link → a contact with the same email or phone → otherwise a new lead
+  is recorded with source "Cal.com booking" (it goes through the normal duplicate checks). Such leads never get
+  automatic follow‑ups; they do get the appointment confirmation/reminders (they asked for the appointment).

@@ -14,8 +14,8 @@ printed binder), since you may need it when the site is down.
 | Site outage · broken deployment · domain/DNS/certificate | 7 | Planned |
 | Missing/incorrect records · stopped lead capture | 2 | Planned |
 | Failed or uncertain messages · stopped background jobs | 3 | Draft below |
-| Missing replies · follow‑ups after stop · credit exhaustion/provider suspension | 3–4 | Planned (needs live providers) |
-| Booking & timezone errors | 4 | Planned |
+| Follow‑ups after stop · booking & timezone errors | 4 | Draft below |
+| Missing replies · credit exhaustion/provider suspension | 3–4 | Planned (needs live providers) |
 | Expired integration access · API changes · reporting discrepancies | 5 | Planned |
 | Database/storage exhaustion · accidental deletion · provider outages | 7 | Planned |
 
@@ -48,6 +48,24 @@ printed binder), since you may need it when the site is down.
 - **Safe recovery:** once the trigger runs again, waiting jobs are processed automatically; acknowledgments older
   than 24 hours cancel themselves rather than reach someone a day late. Jobs a crashed worker held are re‑queued
   by the housekeeping step; messages it was sending become *Unknown* (see above).
+
+## Draft: A follow‑up went out after the person asked to stop
+- **Contain:** open the lead → **Stop** the follow‑up; on the conversation **Record opt‑out** for that channel. If
+  several people are affected, use the client's **Emergency stop** (Automations) — it stops every follow‑up for good.
+- **Check:** the lead's History shows when the follow‑up started and when (and why) it stopped. If the reply/booking
+  came in another way Bluewater can't see (phone call, a different email), that's expected — mark the lead
+  Contacted/Booked or stop the follow‑up as soon as a person takes over. If History shows a reply *before* the
+  message, capture the lead link and time for the developer (every step re‑checks replies; this would be a bug).
+- **Customer communication:** apologize once, confirm they won't hear from the automation again.
+
+## Draft: Booking problems (missing, wrong lead, wrong time)
+- **Missing booking:** Connected Accounts → Scheduling shows the last message from Cal.com and the last problem. "Wrong
+  signature" → create a new webhook address and paste the new secret into Cal.com. No messages at all → check the
+  webhook in Cal.com is active and has the three booking triggers; press Ping test.
+- **Attached to a new lead:** the person booked from the general page with a different email/phone (no personal link).
+  Add a note on both leads; nothing is lost.
+- **Wrong time:** times are stored as exact instants and shown in the business's timezone (Settings). Check the
+  business timezone first, then the time zone in the Cal.com event. Reminders follow reschedules automatically.
 
 ## Draft: Exposed credentials (a key or password was shared or committed)
 - **Contain immediately:** rotate the secret at its source (Supabase API keys, Postmark token, database

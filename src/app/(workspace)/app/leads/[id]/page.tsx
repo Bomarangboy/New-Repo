@@ -13,6 +13,8 @@ import { openConversationForLeadAction } from "../../conversations/actions";
 import { acknowledgmentStatus, recentMessagesForContact } from "@/server/messaging/inbox";
 import { MessageSquare } from "lucide-react";
 import { addNoteAction, addTaskAction, assignAction, changeStageAction, recordSaleAction, toggleTaskAction, updateContactAction } from "../actions";
+import { AppointmentsCard, FollowUpCard } from "./follow-up-cards";
+import { STOP_LABELS, type StopCode } from "@/server/sequences/stop";
 
 export const metadata = { title: "Lead" };
 
@@ -41,6 +43,17 @@ function describe(type: string, d: Record<string, unknown>, names: Map<string, s
     case "task_completed": return `Task completed: ${d.title}`;
     case "task_reopened": return `Task reopened: ${d.title}`;
     case "contact_updated": return "Contact details edited";
+    case "follow_up_started": return `Follow-up started${d.origin === "manual" ? " by hand" : " automatically"}${d.confirmedPersonAsked ? " (team member confirmed the person asked to be contacted)" : ""}`;
+    case "follow_up_not_started": return `Follow-up not started: ${d.reason}`;
+    case "follow_up_stopped": return `Follow-up stopped: ${STOP_LABELS[d.code as StopCode] ?? d.reason}`;
+    case "follow_up_paused": return "Follow-up paused";
+    case "follow_up_resumed": return "Follow-up resumed";
+    case "follow_up_completed": return "Follow-up finished — all steps handled";
+    case "follow_up_step_skipped": return String(d.reason ?? "A follow-up step was skipped");
+    case "appointment_booked": return `Appointment booked${d.source === "simulated" ? " (simulated)" : d.source === "calcom" ? " through Cal.com" : " by the team"}${d.via && d.via !== "entered by team" ? ` — linked by ${d.via}` : ""}`;
+    case "appointment_rescheduled": return "Appointment moved to a new time";
+    case "appointment_cancelled": return `Appointment cancelled${d.reason ? ` — ${d.reason}` : ""}`;
+    case "appointment_outcome": return d.outcome === "no_show" ? "Marked as no-show" : "Appointment marked completed";
     default: return type.replaceAll("_", " ");
   }
 }
@@ -95,9 +108,9 @@ export default async function LeadPage({ params, searchParams }: { params: Promi
               )}
             </div>
             <p className="mt-4 text-xs text-muted">
-              {q.automationOrigin === "eligible" ? "Arrived through a connected form; eligible for the automatic acknowledgment once it's set up."
+              {q.automationOrigin === "eligible" ? "Arrived through a connected form; eligible for automatic messages."
                 : q.automationOrigin === "held" ? "Arrived while automatic messages were off for this account; it won't be messaged automatically."
-                : "Added by hand or imported; it won't receive automatic messages."}
+                : "Added by hand, imported or created from a booking; it won't receive automatic messages unless a team member starts a follow-up."}
             </p>
           </Card>
 
@@ -114,7 +127,7 @@ export default async function LeadPage({ params, searchParams }: { params: Promi
               <ul className="space-y-2 text-sm">
                 {recentMsgs.map((m) => (
                   <li key={m.id} className="flex items-start gap-2">
-                    <Badge tone={m.direction === "inbound" ? "purple" : "blue"}>{m.direction === "inbound" ? "They wrote" : m.kind === "acknowledgment" ? "Auto" : "You"}</Badge>
+                    <Badge tone={m.direction === "inbound" ? "purple" : "blue"}>{m.direction === "inbound" ? "They wrote" : m.kind === "manual" ? "You" : m.kind === "follow_up" ? "Follow-up" : m.kind.startsWith("booking_") ? "Booking" : "Auto"}</Badge>
                     <span className="min-w-0 flex-1 truncate">{m.body.split("\n")[0]}</span>
                     <span className="shrink-0 text-xs text-muted">{m.transport === "simulated" ? "simulated · " : ""}{m.direction === "outbound" ? m.status : ""}</span>
                   </li>
@@ -161,6 +174,9 @@ export default async function LeadPage({ params, searchParams }: { params: Promi
         </div>
 
         <div className="space-y-6">
+          <FollowUpCard ctx={ctx} lead={q} />
+          <AppointmentsCard ctx={ctx} lead={q} contact={c} />
+
           <Card title="Contact">
             <ActionForm action={updateContactAction}>
               <fieldset disabled={!canEdit} className="space-y-3">

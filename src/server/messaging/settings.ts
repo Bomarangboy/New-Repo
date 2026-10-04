@@ -9,6 +9,7 @@ import { roleCan, type Action } from "@/lib/authz/permissions";
 import type { CompanyContext } from "@/lib/authz/context-types";
 import { zonedDateTime } from "@/lib/periods";
 import { DEFAULT_TEMPLATES, validateTemplate, type TemplateKey } from "./templates";
+import { stopEnrollments } from "@/server/sequences/stop";
 
 export type MessagingSettings = typeof messagingSettings.$inferSelect;
 
@@ -73,6 +74,12 @@ export async function getAutomationSettings(ctx: CompanyContext) {
     settings: await loadSettings(tx, ctx.companyId),
     sms: await activeTemplate(tx, ctx.companyId, "ack_sms"),
     email: await activeTemplate(tx, ctx.companyId, "ack_email"),
+    booking: {
+      confirmSms: await activeTemplate(tx, ctx.companyId, "booking_confirm_sms"),
+      confirmEmail: await activeTemplate(tx, ctx.companyId, "booking_confirm_email"),
+      reminderSms: await activeTemplate(tx, ctx.companyId, "booking_reminder_sms"),
+      reminderEmail: await activeTemplate(tx, ctx.companyId, "booking_reminder_email"),
+    },
     history: await tx.select({ key: messageTemplates.key, version: messageTemplates.version, createdAt: messageTemplates.createdAt })
       .from(messageTemplates).where(eq(messageTemplates.companyId, ctx.companyId)).orderBy(desc(messageTemplates.createdAt)).limit(10),
   }));
@@ -129,7 +136,9 @@ export async function setEmergencyPause(ctx: CompanyContext, paused: boolean, re
     await loadSettings(tx, ctx.companyId);
     await tx.update(messagingSettings).set({ automationPaused: paused, automationPausedReason: paused ? reason.trim() : null, automationPausedAt: paused ? new Date() : null, updatedAt: new Date() })
       .where(eq(messagingSettings.companyId, ctx.companyId));
-    await audit(tx, { companyId: ctx.companyId, actorUserId: ctx.userId, actorType: actor(ctx), action: paused ? "automation.paused" : "automation.resumed", details: { reason }, requestId });
+    // Stopped, not delayed: follow-ups don't resume when automation is turned back on.
+    const stopped = paused ? await stopEnrollments(tx, ctx.companyId, { allInCompany: true }, "paused_all", `Emergency stop: ${reason.trim().slice(0, 200)}`, { userId: ctx.userId, type: actor(ctx) }) : 0;
+    await audit(tx, { companyId: ctx.companyId, actorUserId: ctx.userId, actorType: actor(ctx), action: paused ? "automation.paused" : "automation.resumed", details: { reason, stoppedFollowUps: stopped }, requestId });
   });
 }
 
