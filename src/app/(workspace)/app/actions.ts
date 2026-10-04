@@ -91,3 +91,40 @@ export async function transferOwnershipAction(_: FormState, fd: FormData): Promi
     return "Ownership transferred. You are now a team member of this workspace.";
   });
 }
+
+export async function weeklySummaryAction(_: FormState, fd: FormData): Promise<FormState> {
+  return run(async () => {
+    const ctx = await actionContext("settings.manage", "scheduled_summaries");
+    const { setWeeklySummaryEnabled } = await import("@/server/reports/weekly-summary");
+    const on = fd.get("on") === "on";
+    await setWeeklySummaryEnabled(ctx, on);
+    revalidatePath("/app/settings");
+    return on ? "Owners will get a summary every Monday morning." : "Weekly summaries turned off.";
+  });
+}
+
+/* ---------------- Support tickets ---------------- */
+
+export async function createTicketAction(_: FormState, fd: FormData): Promise<FormState> {
+  let id = "";
+  const res = await run(async () => {
+    const ctx = await actionContext("support.request");
+    const { createTicket } = await import("@/server/support");
+    const t = await createTicket(ctx, { subject: String(fd.get("subject") ?? ""), category: String(fd.get("category") ?? ""), body: String(fd.get("body") ?? "") });
+    id = t.id;
+    return t.reference;
+  });
+  if (res?.error) return res;
+  redirect(`/app/help/tickets/${id}?created=1`);
+}
+
+export async function replyTicketAction(_: FormState, fd: FormData): Promise<FormState> {
+  return run(async () => {
+    const ctx = await actionContext("support.request");
+    const { replyToMyTicket } = await import("@/server/support");
+    const id = String(fd.get("ticketId") ?? "");
+    await replyToMyTicket(ctx, id, String(fd.get("body") ?? ""));
+    revalidatePath(`/app/help/tickets/${id}`);
+    return "Reply sent to Bluewater.";
+  });
+}

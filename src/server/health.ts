@@ -1,6 +1,6 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { withPlatformDb } from "@/lib/db/context";
-import { companies, jobs, messages, messageStatusEvents } from "@/lib/db/schema";
+import { companies, jobs, messages, messageStatusEvents, opsAlerts } from "@/lib/db/schema";
 import { audit } from "@/lib/audit";
 import { UserError } from "@/lib/errors";
 import { env, isSimulatedEnvironment } from "@/lib/env";
@@ -33,8 +33,29 @@ export async function healthSnapshot(ctx: PlatformContext) {
       where c.status <> 'disconnected' and (c.status <> 'connected' or c.last_error is not null
         or exists (select 1 from app.ad_lead_events e where e.company_id = c.company_id and e.platform = c.platform and e.status = 'failed' and e.received_at > now() - interval '7 days'))
       order by co.name limit 50`);
+    const [db] = await tx.execute<{ bytes: string; connections: number; max_conn: string }>(sql`
+      select pg_database_size(current_database())::text as bytes,
+        (select count(*)::int from pg_stat_activity where datname = current_database()) as connections,
+        current_setting('max_connections') as max_conn`);
+    const [intake] = await tx.execute<{ failed: number; waiting: number }>(sql`
+      select count(*) filter (where status = 'failed')::int as failed,
+             count(*) filter (where status = 'received' and received_at < now() - interval '5 minutes')::int as waiting from app.intake_events`);
+    const alerts = await tx.select().from(opsAlerts).where(sql`${opsAlerts.status} = 'open' or ${opsAlerts.resolvedAt} > now() - interval '3 days'`).orderBy(desc(opsAlerts.lastSeenAt)).limit(50);
+    const records = await tx.execute<{ kind: string; result: string; environment: string; summary: string; recorded_at: Date }>(sql`
+      select distinct on (kind) kind, result, environment, summary, recorded_at from app.ops_records order by kind, recorded_at desc`);
+    const paused = await tx.execute<{ company: string; n: number }>(sql`
+      select co.name as company, count(*)::int as n from app.sequence_enrollments e join app.companies co on co.id = e.company_id
+      where e.status = 'paused' and e.pause_reason is not null group by 1 order by 2 desc limit 20`);
+    const tables = await tx.execute<{ name: string; rows: number }>(sql`
+      select c.relname as name, greatest(c.reltuples, 0)::bigint::int as rows from pg_class c join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'app' and c.relkind = 'r' and c.relname in ('inquiries','contacts','messages','jobs','ad_daily_metrics','inquiry_events','audit_log') order by 2 desc`);
     const e = env();
     return {
+      database: { gb: Number(db!.bytes) / 1024 ** 3, connections: db!.connections, maxConnections: Number(db!.max_conn) },
+      intake: intake!, alerts,
+      adConnectionsList: await tx.execute<{ company_id: string; company: string; platform: string; status: string }>(sql`
+        select c.company_id, co.name as company, c.platform, c.status from app.ad_connections c join app.companies co on co.id = c.company_id
+        where c.status <> 'disconnected' order by co.name, c.platform`), records: records.map((r) => ({ ...r, recordedAt: new Date(r.recorded_at) })), pausedAfterDelay: paused, tables,
       adProblems: adProblems.map((r) => ({ ...r, lastSyncOkAt: r.last_sync_ok_at ? new Date(r.last_sync_ok_at) : null })),
       ads: { live: e.ADS_LIVE_ENABLED, metaApp: Boolean(e.META_APP_ID && e.META_APP_SECRET), googleApp: Boolean(e.GOOGLE_OAUTH_CLIENT_ID && e.GOOGLE_ADS_DEVELOPER_TOKEN) },
       dbMs,

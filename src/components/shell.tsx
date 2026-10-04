@@ -5,13 +5,13 @@ import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import {
   BarChart3, CalendarDays, Home, LifeBuoy, Link2, Menu, MessageCircle, Settings, Users, X, Zap,
-  Building2, ScrollText, Activity, Presentation,
+  Building2, ScrollText, Activity, Presentation, Receipt, Megaphone, Inbox,
 } from "lucide-react";
 import { Wordmark } from "./brand";
 
 const ICONS = {
   home: Home, users: Users, message: MessageCircle, zap: Zap, calendar: CalendarDays, chart: BarChart3,
-  link: Link2, settings: Settings, help: LifeBuoy, building: Building2, log: ScrollText, health: Activity, demo: Presentation,
+  link: Link2, settings: Settings, help: LifeBuoy, building: Building2, log: ScrollText, health: Activity, demo: Presentation, billing: Receipt, notice: Megaphone, inbox: Inbox,
 } as const;
 export type IconName = keyof typeof ICONS;
 

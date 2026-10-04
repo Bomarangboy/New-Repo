@@ -506,6 +506,8 @@ export const jobs = app.table(
     idempotencyKey: text("idempotency_key").notNull(),
     runAt: timestamp("run_at", { withTimezone: true }).notNull().defaultNow(),
     status: text("status").notNull().default("queued"), // queued | running | succeeded | failed | dead | cancelled
+    /** Lower runs first when work piles up: 1 = lead intake & acknowledgments, 5 = normal, 8 = reporting imports. */
+    priority: integer("priority").notNull().default(5),
     attempts: integer("attempts").notNull().default(0),
     maxAttempts: integer("max_attempts").notNull().default(5),
     lockedUntil: timestamp("locked_until", { withTimezone: true }),
@@ -532,6 +534,8 @@ export const messagingSettings = app.table("messaging_settings", {
   windowDays: jsonb("window_days").$type<number[]>().notNull().default([0, 1, 2, 3, 4, 5, 6]),
   /** Who is told about new leads/replies. Empty = the lead's assignee, else every active owner. */
   notifyUserIds: jsonb("notify_user_ids").$type<string[]>().notNull().default([]),
+  /** Package 3: weekly summary email to owners (Monday morning, company timezone). */
+  weeklySummaryEnabled: boolean("weekly_summary_enabled").notNull().default(true),
   /** Emergency stop for ALL automatic messages of this company. */
   automationPaused: boolean("automation_paused").notNull().default(false),
   automationPausedReason: text("automation_paused_reason"),
@@ -791,6 +795,8 @@ export const sequenceEnrollments = app.table(
     enrolledByUserId: uuid("enrolled_by_user_id").references(() => users.id, { onDelete: "set null" }),
     enrolledAt: timestamp("enrolled_at", { withTimezone: true }).notNull().defaultNow(),
     pausedAt: timestamp("paused_at", { withTimezone: true }),
+    /** Why it's paused when the system paused it (e.g. a step was delayed by an outage). */
+    pauseReason: text("pause_reason"),
     endedAt: timestamp("ended_at", { withTimezone: true }),
     /** Plain-language reason it stopped (reply, booking, opt-out, …). */
     stopReason: text("stop_reason"),
@@ -1081,4 +1087,159 @@ export const adSyncRuns = app.table(
     foreignKey({ columns: [t.companyId, t.connectionId], foreignColumns: [adConnections.companyId, adConnections.id], name: "ad_sync_runs_connection_fk" }).onDelete("cascade"),
     index("ad_sync_runs_recent_idx").on(t.companyId, t.startedAt),
   ],
+);
+
+/* =====================================================================================
+ * Stage 7: operations — alerts, usage & billing, support, notices, retention, recovery records
+ * ===================================================================================== */
+
+/** Platform-wide settings administrators can change (e.g. unit prices for cost estimates). Platform-only. */
+export const platformSettings = app.table("platform_settings", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").$type<Record<string, unknown>>().notNull(),
+  updatedByUserId: uuid("updated_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Problems Bluewater should know about, opened and resolved automatically by the maintenance check.
+ * One email when it opens, one "recovered" email when it resolves (grouped by key, never repeated each minute).
+ */
+export const opsAlerts = app.table(
+  "ops_alerts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    key: text("key").notNull(),
+    severity: text("severity").notNull(), // warning | critical
+    title: text("title").notNull(),
+    detail: text("detail"),
+    companyId: uuid("company_id").references(() => companies.id, { onDelete: "cascade" }),
+    status: text("status").notNull().default("open"), // open | resolved
+    firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    notifiedAt: timestamp("notified_at", { withTimezone: true }),
+    recoveryNotifiedAt: timestamp("recovery_notified_at", { withTimezone: true }),
+  },
+  (t) => [uniqueIndex("ops_alerts_open_key").on(t.key).where(sql`${t.status} = 'open'`), index("ops_alerts_recent_idx").on(t.status, t.lastSeenAt)],
+);
+
+/** Commercial terms and usage limits per company (manual billing; nothing is charged automatically). */
+export const companyBilling = app.table("company_billing", {
+  companyId: uuid("company_id").primaryKey().references(() => companies.id, { onDelete: "cascade" }),
+  monthlyPriceCents: bigint("monthly_price_cents", { mode: "number" }),
+  billingEmail: text("billing_email"),
+  /** Texts (segments) per calendar month; null = no limit. */
+  smsMonthlyLimit: integer("sms_monthly_limit"),
+  emailMonthlyLimit: integer("email_monthly_limit"),
+  /** warn = alert only; pause_automatic = automatic texts stop (emails/manual replies continue, leads always captured). */
+  limitMode: text("limit_mode").notNull().default("warn"),
+  graceDays: integer("grace_days").notNull().default(14),
+  notes: text("notes"),
+  ...timestamps,
+});
+
+/** Manual invoice records (Bluewater bills outside the app at first). Kept even if a company's data is deleted. */
+export const invoices = app.table(
+  "invoices",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "restrict" }),
+    reference: text("reference").notNull(),
+    periodStart: date("period_start", { mode: "string" }).notNull(),
+    periodEnd: date("period_end", { mode: "string" }).notNull(),
+    amountCents: bigint("amount_cents", { mode: "number" }).notNull(),
+    currency: text("currency").notNull().default("USD"),
+    status: text("status").notNull().default("sent"), // sent | paid | failed | void
+    dueDate: date("due_date", { mode: "string" }),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    notes: text("notes"),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("invoices_reference_key").on(t.reference), index("invoices_company_idx").on(t.companyId, t.periodStart)],
+);
+
+/** Customer support requests. Company-scoped; internal notes are never visible to the client. */
+export const supportTickets = app.table(
+  "support_tickets",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    /** Human reference, e.g. BW-1042 (unique across the platform). */
+    reference: text("reference").notNull(),
+    subject: text("subject").notNull(),
+    category: text("category").notNull().default("question"), // question | problem | billing | urgent
+    status: text("status").notNull().default("open"), // open | waiting_on_customer | resolved | closed
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    assignedAdminId: uuid("assigned_admin_id").references(() => users.id, { onDelete: "set null" }),
+    lastActivityAt: timestamp("last_activity_at", { withTimezone: true }).notNull().defaultNow(),
+    ...timestamps,
+  },
+  (t) => [
+    unique("support_tickets_company_id_key").on(t.companyId, t.id),
+    uniqueIndex("support_tickets_reference_key").on(t.reference),
+    index("support_tickets_status_idx").on(t.status, t.lastActivityAt),
+  ],
+);
+
+export const supportTicketMessages = app.table(
+  "support_ticket_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    ticketId: uuid("ticket_id").notNull(),
+    authorUserId: uuid("author_user_id").references(() => users.id, { onDelete: "set null" }),
+    authorType: text("author_type").notNull(), // customer | bluewater
+    body: text("body").notNull(),
+    /** Bluewater-only note (row-level security hides it from the client). */
+    internal: boolean("internal").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    foreignKey({ columns: [t.companyId, t.ticketId], foreignColumns: [supportTickets.companyId, supportTickets.id], name: "ticket_messages_ticket_fk" }).onDelete("cascade"),
+    index("ticket_messages_ticket_idx").on(t.ticketId, t.createdAt),
+  ],
+);
+
+/** Service notices to clients (outages, maintenance). Drafted, recipients reviewed, then sent. Platform-only. */
+export const incidentNotices = app.table("incident_notices", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  audience: text("audience").notNull(), // all_active | selected
+  companyIds: jsonb("company_ids").$type<string[]>().notNull().default([]),
+  status: text("status").notNull().default("draft"), // draft | sent | cancelled
+  createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  sentByUserId: uuid("sent_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  recipientCount: integer("recipient_count"),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  ...timestamps,
+});
+
+/** Record of a company's data being deleted (kept after the deletion, with what was removed). Platform-only. */
+export const dataDeletions = app.table("data_deletions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "restrict" }),
+  companyName: text("company_name").notNull(),
+  requestedByUserId: uuid("requested_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  reason: text("reason").notNull(),
+  summary: jsonb("summary").$type<Record<string, number>>().notNull(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Evidence of operational checks: backups verified, restore tests, load tests, deployment checks. Platform-only. */
+export const opsRecords = app.table(
+  "ops_records",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: text("kind").notNull(), // backup_check | restore_test | load_test | deploy_check
+    result: text("result").notNull(), // passed | failed | partial
+    environment: text("environment").notNull(),
+    summary: text("summary").notNull(),
+    details: jsonb("details").$type<Record<string, unknown>>().notNull().default({}),
+    recordedByUserId: uuid("recorded_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("ops_records_kind_idx").on(t.kind, t.recordedAt)],
 );

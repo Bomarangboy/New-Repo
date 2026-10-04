@@ -21,10 +21,19 @@ export interface EnqueueInput {
   maxAttempts?: number;
 }
 
+/**
+ * Under load the most important work goes first (docs/CAPACITY.md): recording ad leads and acknowledging new
+ * leads, then team alerts, booking messages, follow-ups, and last the reporting imports.
+ */
+export const JOB_PRIORITY: Record<string, number> = {
+  ad_lead_record: 1, send_acknowledgment: 1, notify_new_lead: 2, notify_reply: 2, notify_ack_problem: 2,
+  booking_message: 3, notify_booking: 4, sequence_step: 4, ad_lead_reconcile: 6, ad_metrics_sync: 8, weekly_summary: 8,
+};
+
 export async function enqueue(tx: Tx, j: EnqueueInput): Promise<void> {
   await tx.insert(jobs).values({
     companyId: j.companyId, kind: j.kind, idempotencyKey: j.key, payload: j.payload ?? {},
-    runAt: j.runAt ?? new Date(), maxAttempts: j.maxAttempts ?? 5,
+    runAt: j.runAt ?? new Date(), maxAttempts: j.maxAttempts ?? 5, priority: JOB_PRIORITY[j.kind] ?? 5,
   }).onConflictDoNothing({ target: jobs.idempotencyKey });
 }
 
@@ -53,13 +62,13 @@ export async function claimDueJobs(limit: number, now = new Date()): Promise<Job
   return withSystemDb("jobs: claim", async (tx) => {
     const rows = await tx.execute<Record<string, unknown>>(sql`
       with ranked as (
-        select id, row_number() over (partition by coalesce(company_id::text, '') order by run_at) as rn
+        select id, row_number() over (partition by coalesce(company_id::text, '') order by priority, run_at) as rn
         from app.jobs where status = 'queued' and run_at <= ${now.toISOString()}
-        order by run_at limit 1000
+        order by priority, run_at limit 1000
       ), picked as (
         select j.id from app.jobs j join ranked r on r.id = j.id
         where r.rn <= ${PER_COMPANY_PER_BATCH} and j.status = 'queued'
-        order by j.run_at limit ${limit}
+        order by j.priority, j.run_at limit ${limit}
         for update of j skip locked
       )
       update app.jobs set status = 'running', attempts = attempts + 1,

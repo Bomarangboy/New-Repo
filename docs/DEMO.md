@@ -1,7 +1,6 @@
 # Sales Demo Environment
 
-**Status:** foundation (Stage 1) + sample dataset v1 (Stage 2) + simulated conversations (Stage 3) + follow‑ups and simulated appointments (Stage 4) + simulated ad accounts and reports (Stage 5). The full demo — sample dataset, prospect access, presentation
-controls, guided tour — is built alongside Stages 2–5. Nothing in the demo is evidence that a live
+**Status:** foundation (Stage 1) + sample dataset v1 (Stage 2) + simulated conversations (Stage 3) + follow‑ups and simulated appointments (Stage 4) + simulated ad accounts and reports (Stage 5) + **prospect workspaces, presentation controls, cleanup and presentation script (Stage 7)**. Nothing in the demo is evidence that a live
 integration works.
 
 ## What exists now (and is tested)
@@ -47,18 +46,59 @@ prospect workspaces exist.
   numbers and sample leads linked to sample campaigns, so Reports is fully populated — with a "Sample numbers" banner.
 - The server forces simulated ad platforms in the demo; `ADS_LIVE_ENABLED` is refused there.
 
-## Planned design
+## Prospect workspaces (Stage 7)
+Admin → **Sales demo** (on the demo site):
+- **New prospect workspace**: business name, package, timezone, 1–30 days. It is created as a `demo_prospect`
+  company filled with a fresh fictional dataset (about 130 leads over 90 days, conversations, follow‑ups,
+  appointments, simulated ad accounts). Optionally invite the prospect: they become **owner of that copy only**.
+- **Presentation controls** (administrators only; each is recorded in the activity log):
+  *Simulate a new lead* (arrives through the normal lead path; the automatic reply runs, simulated) ·
+  *Simulate a reply* (latest conversation answers) · *Simulate a booking* (newest open lead books; its follow‑up
+  stops) · *Run next follow‑up now* · *Switch package* (shows what each package unlocks).
+- **Reset sample data** (sign‑ins are kept), **Extend** (max 30 days from today), **End access now**.
+- Expired or revoked workspaces can't be signed into; their data is **deleted automatically 7 days later**
+  (scheduled maintenance; a deletion record is kept).
+
+Restrictions are enforced by the server, not the screen: prospect workspaces **can't be created in production**;
+demo companies can never use real messaging providers or live ad connections (`liveDeliveryAllowed=false`,
+`ADS_LIVE_ENABLED` refused in demo); the controls refuse any company that isn't a demo prospect (tested).
+
+## Presentation script (about 15 minutes)
+Before: wake the demo database (free projects pause when idle — open the demo site 5 minutes early), create the
+prospect's workspace with their business name and the package you're proposing, and sign in as the prospect's
+owner in a second browser window (or share your screen from the admin window plus the workspace).
+
+1. **The problem (1 min).** “How many inquiries go unanswered for more than an hour?” Open **Overview**:
+   leads this month, response, booked, recorded sales. Point at the yellow **Demo — Sample Data** banner.
+2. **Instant response (3 min).** Admin → *Simulate a new lead*. In the workspace, refresh **Leads**: the new lead,
+   its source, and within seconds the automatic text (labeled *Simulated*). Open the lead: history, consent
+   evidence, the acknowledgment.
+3. **Two‑way conversation (2 min).** *Simulate a reply*. **Conversations** shows it waiting; answer it from the
+   inbox. Mention STOP handling and quiet hours.
+4. **Follow‑up & booking — Package 2 (4 min).** On the lead, show the running follow‑up. *Run next follow‑up now*,
+   refresh: the step was sent. *Simulate a booking*: the lead moves to Booked, follow‑up stops, confirmation and
+   reminder are scheduled. Open **Appointments**.
+5. **Reporting — Package 3 (3 min).** *Switch package* to Package 3. **Reports**: ad spend (sample numbers),
+   leads by campaign, cost per lead; explain “campaign unknown” honestly. Mention the Monday summary email.
+6. **Close (2 min).** Settings → team, Help & Support requests, emergency pause. Agree next steps; *Extend* if
+   they want to explore on their own.
+
+Say clearly: Cal.com, Twilio, Postmark, Meta and Google are **simulated in the demo**; live connections are set
+up per client after approval. Features not yet built (external CRM sync) are labeled as such in the app.
+
+## Design (unchanged)
+
 - Hosted separately at `demo.yourdomain.com` with its **own Supabase project and Vercel project** — no
   connection strings or keys from production exist there.
 - **Template dataset:** fictional "Harbor Home Services" with leads, conversations, appointments, campaigns,
   spend and sales generated so dashboard totals equal the underlying records (a test will check this).
 - **Prospect access:** you create an invitation for a prospect from the admin area with an expiry date;
-  the prospect gets a private copy of the template (`demo_prospect`), can edit freely, and can be revoked
-  any time. Prospects are always company owners of their copy — never administrators.
+  the prospect gets their own freshly generated sample workspace (`demo_prospect`; built as a new dataset rather
+  than a copy of a template), can edit freely, and can be revoked any time. Prospects are always company owners of their copy — never administrators.
 - **Presentation controls (admin only, separate panel):** reset workspace, simulate new lead, simulate reply,
   simulate booking, advance a follow‑up sequence, switch the demonstrated package.
 - **Simulated connectors:** messaging, Meta, Google, CRM and booking connectors have simulated
   implementations selected **in server code** whenever `APP_ENV=demo` or the company is a demo kind.
   Simulated messages appear in the demo inbox only.
-- **Cleanup:** a scheduled job deletes expired prospect workspaces after a grace period.
-- **Guided tour and presentation script:** added once the features they show exist.
+- **Cleanup:** built — maintenance deletes expired prospect workspaces 7 days after expiry.
+- **Guided tour and presentation script:** the script above. An in‑app click‑through tour is not built (the script covers it).

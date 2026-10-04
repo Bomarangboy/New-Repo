@@ -4,13 +4,16 @@ A web platform that helps client businesses respond to every advertising lead, f
 see what their advertising produces. Each client company gets its own secure workspace; Bluewater
 administrators manage all companies from a separate area.
 
-> **Status:** Stages 1–5 of 7 complete — accounts, security, company isolation, permissions, administrator
+> **Status:** Stages 1–5 and 7 complete (Stage 6, external CRM sync, waits for your choice of CRM) — accounts, security, company isolation, permissions, administrator
 > company management, built-in CRM, website form capture, CSV import/export, a dashboard from real data,
 > **messaging** (automatic acknowledgments, two-way inbox, opt-outs, team alerts, background jobs) and
 > **Package 2**: multi-day follow-up sequences, Cal.com booking, appointments, confirmations and reminders.
 > All messaging is **simulated** (clearly labeled) until real Twilio/Postmark accounts exist and you approve
 > go-live; Cal.com awaits a real account. **Advertising** (Stage 5): Facebook/Instagram and Google lead forms and
-> Package 3 ad reporting — simulated until Meta/Google approve Bluewater's apps. Nothing is deployed yet. See [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md).
+> Package 3 ad reporting — simulated until Meta/Google approve Bluewater's apps. **Operations** (Stage 7): health &
+> alerts, backups with a tested restore drill, load test, support requests, service notices, usage & billing records,
+> weekly summaries, data retention/deletion and sales‑demo workspaces. Nothing is deployed yet — see
+> [`docs/LAUNCH_CHECKLIST.md`](docs/LAUNCH_CHECKLIST.md). See [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md).
 
 ## Documents
 
@@ -31,7 +34,15 @@ administrators manage all companies from a separate area.
 | [docs/COSTS.md](docs/COSTS.md) | Expected running costs and assumptions |
 | [docs/ACCOUNT_INVENTORY.md](docs/ACCOUNT_INVENTORY.md) | Every outside account you'll own |
 | [docs/OWNER_MANUAL.md](docs/OWNER_MANUAL.md) | Day‑to‑day operation in plain English |
-| [docs/DEMO.md](docs/DEMO.md) | The sales demo environment |
+| [docs/DEMO.md](docs/DEMO.md) | The sales demo environment and presentation script |
+| [docs/LAUNCH_CHECKLIST.md](docs/LAUNCH_CHECKLIST.md) | Ready / approvals / decisions, what can be sold, pilot plan |
+| [docs/MONITORING.md](docs/MONITORING.md) | Health endpoint, alerts, status page |
+| [docs/RECOVERY.md](docs/RECOVERY.md) | Backups, restore drill results, disaster recovery |
+| [docs/CAPACITY.md](docs/CAPACITY.md) | Load‑test results vs targets |
+| [docs/BILLING.md](docs/BILLING.md) | Usage, cost estimates, limits, invoices |
+| [docs/SUPPORT.md](docs/SUPPORT.md) | Support requests, hours, service notices |
+| [docs/RETENTION.md](docs/RETENTION.md) | What is kept, for how long, and how deletion works |
+| [docs/playbooks/README.md](docs/playbooks/README.md) | Incident playbooks |
 | [CLAUDE.md](CLAUDE.md) | Rules for any developer (human or AI) working on the code |
 
 ## Try it on a computer (local development)
@@ -68,6 +79,8 @@ work, run `npm run jobs:work` in a second terminal.
 npm run typecheck && npm run lint   # code checks
 npm test                            # unit + database tests (creates a throwaway "bluewater_test" database)
 npm run build && npm run test:e2e   # real-browser tests against a fresh "bluewater_e2e" database
+npx tsx scripts/restore-test.ts     # backup + restore drill into a separate database (RECOVERY.md)
+npx tsx scripts/load-test.ts        # load test at the pilot peak (CAPACITY.md); never against production
 ```
 
 ## Where the code lives
@@ -79,7 +92,8 @@ src/app/admin         Bluewater administrator area (/admin/...)
 src/lib/auth          sign-in providers (Supabase for real; local for dev/tests)
 src/lib/authz         roles, packages, account status, the server-side gatekeeper
 src/lib/db            database schema, connection, the three guarded "doors"
-src/server            business logic (companies, team, CRM, intake, messaging, sequences, booking, jobs, metrics, sample data)
+src/server            business logic (companies, team, CRM, intake, messaging, sequences, booking, ads, jobs, metrics,
+                      billing, support, retention, ops alerts/controls, weekly summaries, demo workspaces)
 drizzle/              database migrations (incl. row-level security)
 tests/                unit, integration (real database) and browser tests
 docs/                 everything above

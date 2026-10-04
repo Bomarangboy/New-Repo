@@ -129,6 +129,23 @@ Loop prevention: every outbound write records `origin=bluewater` + a change ID; 
 own change ID are ignored; field‑level "last writer + timestamp" decides conflicts per a documented mapping.
 The external CRM is the system of record in external mode.
 
+## Operations (Stage 7)
+- **Monitoring:** `server/ops/alerts.ts` runs inside the every‑minute maintenance step (advisory lock), stores grouped
+  alerts in `ops_alerts` (one open row per key — database rule) and emails administrators on open/resolve only.
+  `/api/health` is public and client‑free for the external uptime monitor.
+- **Recovery controls:** `server/ops/controls.ts` (retry intake / ad leads, re‑import a date range, Bluewater automation
+  pause, redacted diagnostics, ops evidence records). Late follow‑up steps (> 24 h) pause instead of sending.
+- **Queue priorities:** `jobs.priority` (D‑40) ordered before `run_at` in the claim query.
+- **Billing/usage:** `server/billing.ts`; `company_billing` + `invoices` are readable by the client's owner, writable only
+  in the admin area (separate RLS policies; invoices have no DELETE grant).
+- **Support:** `support_tickets` (company policy) and `support_ticket_messages` (client sees/writes only non‑internal,
+  customer‑authored rows — enforced by RLS). `incident_notices` are platform‑only.
+- **Deletion:** `app.purge_company_data()` is the only path that removes company data from append‑only tables. It is
+  `SECURITY DEFINER`, refuses outside platform/system scope, and refuses unless the company is archived (or a demo
+  prospect). A test fails if a new company table isn't explicitly deleted or kept.
+- **Backups:** because RLS is *forced*, logical dumps run with `--enable-row-security` in system scope
+  (`scripts/restore-test.ts`).
+
 ## Environments
 
 See DECISIONS.md D‑12 and DEPLOYMENT.md. The **sales demo** is a separate deployment with a separate
@@ -139,7 +156,8 @@ forced to simulated mode in code (not just hidden in the interface).
 
 - Supabase Auth path is not yet verified against a live project (sandbox could not run Supabase locally).
 - Messaging (Stage 3) and follow-ups/booking (Stage 4) are built, but only the simulated transport and signed test
-  webhooks have been exercised; Twilio/Postmark/Cal.com paths await accounts (MESSAGING.md, BOOKING.md). External CRM, demo
-  prospect access and Stage 7 operations tooling are not built yet. Ad connections are simulated until approvals (ADS.md).
-- No rate limiting on sign‑in beyond account lockout (local) / Supabase's built‑in limits; Stage 7 adds
-  edge rate limiting for public endpoints.
+  webhooks have been exercised; Twilio/Postmark/Cal.com paths await accounts (MESSAGING.md, BOOKING.md). External CRM sync is not
+  built (Stage 6). Operations tooling (Stage 7) is built; the hosted restore drill and load test run on staging at launch. Ad connections are simulated until approvals (ADS.md).
+- Rate limiting: per‑form limit on website intake (30/min), account lockout (local) and Supabase's built‑in sign‑in limits.
+  Edge rate limiting for other public endpoints is a Vercel Firewall setting to add at deployment (LAUNCH_CHECKLIST.md).
+- Error tracking (Sentry) is not wired; outages are covered by `/api/health` + the external monitor and in‑app alerts.

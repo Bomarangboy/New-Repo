@@ -5,6 +5,7 @@ import { env, isSimulatedEnvironment } from "@/lib/env";
 import type { CompanyKind } from "@/lib/authz/account-policy";
 import { activeSuppression, latestConsent } from "./eligibility";
 import { transportDecision } from "./transport";
+import { automaticTextsPaused } from "@/server/billing";
 
 type Contact = typeof contacts.$inferSelect;
 export type ChannelPreference = "sms" | "email" | "sms_or_email";
@@ -20,6 +21,7 @@ export async function pickChannel(tx: Tx, companyId: string, c: Contact, pref: C
     if (!c.phoneE164) reasons.push("no phone number");
     else if (await activeSuppression(tx, companyId, "sms", c.phoneE164)) reasons.push("their number opted out of texts");
     else if ((await latestConsent(tx, companyId, c.id, "sms")) !== true) reasons.push("no text permission recorded");
+    else if (await automaticTextsPaused(tx, companyId)) reasons.push("this month's text limit is reached");
     else return { channel: "sms", to: c.phoneE164 };
   }
   if (pref !== "sms") {

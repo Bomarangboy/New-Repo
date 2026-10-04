@@ -49,7 +49,7 @@ export async function runDueJobs(opts: { limit?: number; timeBudgetMs?: number; 
  * Housekeeping, at most once a minute across all workers (advisory lock):
  * requeue jobs whose worker vanished, mark interrupted sends "unknown", apply scheduled cancellations.
  */
-export async function runMaintenance(now = new Date()): Promise<{ ran: boolean; staleJobs?: number; unknownSends?: number; cancellations?: number; adJobs?: number }> {
+export async function runMaintenance(now = new Date()): Promise<{ ran: boolean; staleJobs?: number; unknownSends?: number; cancellations?: number; adJobs?: number; alerts?: { opened: number; resolved: number }; demoCleanups?: number }> {
   const got = await withSystemDb("jobs: maintenance lock", async (tx) => {
     const r = await tx.execute<{ ok: boolean }>(sql`select pg_try_advisory_xact_lock(hashtextextended('bluewater:maintenance', 0)) as ok`);
     if (!r[0]?.ok) return false;
@@ -69,5 +69,11 @@ export async function runMaintenance(now = new Date()): Promise<{ ran: boolean; 
   const cancellations = await applyDueCancellations(now);
   const { scheduleAdWork } = await import("@/server/ads/sync");
   const adJobs = await scheduleAdWork(now);
-  return { ran: true, staleJobs, unknownSends, cancellations, adJobs };
+  const { scheduleWeeklySummaries } = await import("@/server/reports/weekly-summary");
+  await scheduleWeeklySummaries(now);
+  const { runOpsChecks } = await import("@/server/ops/alerts");
+  const alerts = await runOpsChecks(now).catch(() => ({ opened: 0, resolved: 0 }));
+  const { cleanupExpiredProspects } = await import("@/server/demo/prospects");
+  const demoCleanups = await cleanupExpiredProspects(now);
+  return { ran: true, staleJobs, unknownSends, cancellations, adJobs, alerts, demoCleanups };
 }

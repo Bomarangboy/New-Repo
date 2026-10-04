@@ -237,7 +237,7 @@ export async function resumeEnrollment(ctx: CompanyContext, enrollmentId: string
     if (e.status !== "paused") throw new UserError("This follow-up isn't paused.");
     const now = new Date();
     const runAt = e.nextRunAt && e.nextRunAt > now ? e.nextRunAt : new Date(now.getTime() + 60_000);
-    await tx.update(sequenceEnrollments).set({ status: "active", pausedAt: null, nextRunAt: runAt, updatedAt: now }).where(eq(sequenceEnrollments.id, e.id));
+    await tx.update(sequenceEnrollments).set({ status: "active", pausedAt: null, pauseReason: null, nextRunAt: runAt, updatedAt: now }).where(eq(sequenceEnrollments.id, e.id));
     // A fresh job key (the paused one was cancelled); the MESSAGE key stays per step, so nothing can send twice.
     await enqueueStep(tx, ctx.companyId, e.id, e.nextStep, runAt, `:resume:${now.getTime()}`);
     await tx.insert(inquiryEvents).values({ companyId: ctx.companyId, inquiryId: e.inquiryId, type: "follow_up_resumed", actorUserId: ctx.userId, actorType: actorType(ctx), details: { nextStepAt: runAt.toISOString() } });

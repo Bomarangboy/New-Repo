@@ -1,0 +1,1 @@
+ALTER TABLE "app"."sequence_enrollments" ADD COLUMN "pause_reason" text;

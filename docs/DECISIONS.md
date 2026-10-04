@@ -45,6 +45,14 @@ Status key: **Decided** (owner approved) · **Assumed** (reasonable default; rev
 | D‑34 | Google lead forms | **Assumed** — via Google's lead-form webhook (no API approval needed) | — |
 | D‑35 | One Facebook Page → one company | **Assumed** — database rule | — |
 | D‑30 | Booking from an unknown person | **Assumed** — recorded as a new lead ("Cal.com booking"), never auto‑messaged except confirmations/reminders | — |
+| D‑36 | Weekly owner summaries (Package 3) | **Assumed** — email Mondays from 8am local; last Mon–Sun; owners only; can be turned off | — |
+| D‑37 | Usage limits & billing | **Assumed** — manual invoices; limits alert or pause *automatic texts* only; never auto‑suspend for payment | Pricing (owner) |
+| D‑38 | Retention & deletion | **Assumed** — keep while client; delete only archived companies on request; keep billing, history, audit, opt‑outs | Legal review (D‑18) |
+| D‑39 | Late follow‑ups after an outage | **Assumed** — a step > 24 h late is paused for a person, never sent | — |
+| D‑40 | Work priorities under load | **Assumed** — new‑lead work first, reports last | — |
+| D‑41 | Alerts | **Assumed** — grouped, email on open/recover only; public `/api/health` for the external monitor | Monitor account (owner) |
+| D‑42 | Sales‑demo prospect workspaces | **Assumed** — demo site only; 1–30 days; deleted 7 days after expiry | Demo deployment |
+| D‑43 | Support requests & notices | **Assumed** — in‑app tickets with BW‑ references; notices need recipient‑count confirmation | — |
 
 ---
 
@@ -289,6 +297,47 @@ Each extra Supabase project adds compute cost (one Micro is covered by the inclu
 - Enforced by a unique database index on active Pages, so a lead can never be routed to two clients. Moving a Page
   between companies is an administrator task (turn it off in one, then on in the other).
 
-### Deferred: scheduled owner summaries (Package 3)
-- Weekly emailed summaries are part of Package 3 in the spec; planned for Stage 7 together with the reporting
-  definitions they summarize. The Reports page says so.
+### D‑36 Weekly owner summaries — Assumed (Stage 7)
+- Package 3 owners get one email per week: last Monday–Sunday in the company's timezone, sent from Monday 8:00 local.
+  Same definitions as Overview/Reports (METRICS.md); simulated numbers labeled; unknowns never shown as zero. One per
+  owner per week (database key), even if the job runs twice. Owners can turn it off in Settings. Employees don't get it.
+
+### D‑37 Usage limits and billing — Assumed (Stage 7)
+- Manual invoicing (D‑16) with invoice *records* in the app; nothing charges anyone. Unit prices for cost estimates are
+  entered by the owner (unknown → “—”). Per‑client monthly text limit: *alert only* (default) or *pause automatic
+  texts* — automatic texts fall back to email; lead capture, manual replies and emails always continue.
+- Failed payment → “past due” + alert after the grace period (default 14 days). Service is **never** suspended
+  automatically for payment; that's the owner's call. Invoices can't be deleted (voided instead).
+
+### D‑38 Retention and deletion — Assumed (Stage 7; part of the legal review D‑18)
+- Data kept while the company is a client and after churn (read‑only export window). Permanent deletion only for
+  **archived** companies, by an administrator with two‑step verification, typing the exact name; enforced again by the
+  database function. Kept after deletion: company row, invoices/billing terms, package/status history, support‑access
+  records, activity log, the deletion record and the **opt‑out list** (so people who said STOP are never contacted
+  again). Backups keep deleted data until they expire (7 days). Details: RETENTION.md.
+
+### D‑39 Follow‑ups that are late after an outage — Assumed (Stage 7)
+- A follow‑up step that is more than 24 hours past its time is **paused** with a reason on the lead, not sent; a person
+  decides whether to resume. (Acknowledgments older than 24 h already cancel themselves, D‑24.) This prevents sending
+  days of accumulated follow‑ups after an outage.
+
+### D‑40 Priorities under load — Assumed (Stage 7)
+- Job priority: recording ad leads and acknowledgments (1) → alerts (2) → booking messages (3) → follow‑ups and booking
+  alerts (4) → missed‑lead checks (6) → ad imports and weekly summaries (8). Plus at most 5 jobs per company per batch.
+
+### D‑41 Alerts and the health endpoint — Assumed (Stage 7)
+- In‑app checks every minute; alerts grouped by key, one email when a problem starts and one when it resolves.
+  `/api/health` (public, no client data) for an external uptime monitor that alerts through its own channel. Thresholds
+  in MONITORING.md (queue delay 10 min; message failures > 20 % of ≥ 10 in an hour; database 6 GB).
+
+### D‑42 Sales‑demo prospect workspaces — Assumed (Stage 7)
+- Created only on the demo site (refused in production), fictional dataset generated per prospect, 1–30 days, extend /
+  reset / end access, presentation controls for administrators only; data deleted automatically 7 days after expiry.
+
+### D‑43 Support requests and service notices — Assumed (Stage 7)
+- In‑app support requests with references (BW‑1001…), company‑scoped, internal notes hidden by the database; all
+  administrators emailed. Service notices go to company owners only after the administrator reviews the exact list and
+  confirms the count. The public status page is a separate free service (MONITORING.md).
+
+### D‑15 measured (Stage 7)
+- Load test and restore drill results are in CAPACITY.md and RECOVERY.md (local measurements; staging run pending).

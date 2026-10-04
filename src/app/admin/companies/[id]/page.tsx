@@ -10,6 +10,7 @@ import { formatInZone } from "@/lib/timezones";
 import { canTransition, getCompanyForAdmin, LIFECYCLE, SUPPORT_MAX_MINUTES } from "@/server/companies";
 import { getSenders } from "@/server/senders";
 import { EmailSenderForm } from "./senders";
+import { CompanyOperations } from "./operations";
 import { saveSmsSenderAction } from "../../actions";
 import { changeLifecycleAction, changePackageAction, endSupportAction, inviteOwnerAction, scheduleCancellationAction, startSupportAction, suspendAction, withdrawCancellationAction } from "../../actions";
 
@@ -164,6 +165,7 @@ export default async function CompanyAdminPage({ params, searchParams }: { param
           </div>
         </Card>
 
+        <CompanyOperations ctx={ctx} companyId={c.id} />
         <Card title="Package history">
           <ul className="space-y-2 text-sm">{packages.map((p) => <li key={p.id}><span className="text-muted">{formatInZone(p.createdAt, tz, { dateStyle: "medium" })}</span> — {p.fromPackage ? `${p.fromPackage.replaceAll("_", " ")} → ` : ""}{p.toPackage.replaceAll("_", " ")}{p.note ? ` (${p.note})` : ""}</li>)}</ul>
         </Card>

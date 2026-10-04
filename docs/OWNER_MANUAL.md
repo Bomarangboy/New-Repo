@@ -57,8 +57,13 @@ view‑only unless you choose otherwise, and the client sees it in their own act
   not delayed. Manual replies still work. Turn it back on from the same page.
 - Every message says **Simulated** until real sending is switched on — they were not actually delivered.
 
-## Health page (administrators)
-`/admin/health` shows whether sending is simulated or live, when the scheduler last ran (it should run every
+## Health & Recovery (administrators)
+`/admin/health` lists **open alerts** first (you also get one email when a problem starts and one when it's over),
+database size and connections, website submissions that failed (**Retry**), ad lead problems (**Retry**),
+**Re‑import ad data** for a date range (replaces, never double counts), follow‑ups that were **paused because they were
+more than a day late** (resume them from the lead if still appropriate), and your records of backup/restore/load tests.
+On a company page: **Stop automatic messages** for that client (provider incident), and **Download diagnostics** (a
+redacted file for a developer — no names, numbers or message text). It also shows whether sending is simulated or live, when the scheduler last ran (it should run every
 minute once deployed; older than 5 minutes is flagged), jobs that failed (retry or cancel them) and messages with an **unknown** result.
 An unknown message *may* have reached the person: check the provider's log (Twilio/Postmark) and then mark it
 delivered or failed. Bluewater never re-sends these automatically, to avoid double-texting someone.
@@ -121,4 +126,27 @@ administrator account for a trusted person to avoid this.
 Give the new developer access to the GitHub repository and (as members, not owners) to Supabase and Vercel.
 Point them to `README.md`, `CLAUDE.md` and `docs/`. Remove their access when the work ends.
 
-_(coming)_ Delivery verification · outages · restoring backups · capacity · billing.
+## Support requests, notices and summaries (Stage 7)
+- **Admin → Support**: client requests with BW‑ references. Reply (emailed to the client) or add an internal note
+  (never visible to the client). Details in `SUPPORT.md`.
+- **Admin → Service notices**: email owners about an outage or maintenance. You review the exact recipients before
+  sending. Update your external status page too.
+- **Weekly summary** (Package 3): owners get last week's numbers every Monday morning (their timezone). They can turn it
+  off in Settings.
+
+## Usage & billing (Stage 7)
+**Admin → Usage & Billing** shows each client's texts, emails and leads per month, an estimated provider cost (enter
+your Twilio/Postmark unit prices first — until then it shows “—”), and customers gained/lost by month. On each company:
+price, text limit, grace days and your invoice records. The app never charges anyone. Details in `BILLING.md`.
+
+## Sales demo (Stage 7)
+On the demo site, **Admin → Sales demo** creates a private, expiring workspace for a prospect with fictional data, and
+gives you presentation buttons (new lead, reply, booking, next follow‑up, switch package). Script in `DEMO.md`.
+
+## Deleting a client's data (Stage 7)
+Only after the client is **Archived**: company page → **Delete this company's data** (type the reason and the exact
+company name). What is deleted and kept is shown first and listed in `RETENTION.md`. Backups keep it up to 7 more days.
+
+## When something goes wrong
+Use the playbooks in `docs/playbooks/README.md` (keep a copy outside the app). Backups and restoring: `RECOVERY.md`.
+Capacity measurements: `CAPACITY.md`. Launch readiness: `LAUNCH_CHECKLIST.md`.

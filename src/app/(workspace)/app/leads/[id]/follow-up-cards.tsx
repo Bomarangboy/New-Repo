@@ -36,7 +36,7 @@ export async function FollowUpCard({ ctx, lead }: { ctx: CompanyContext; lead: L
         <div className="space-y-2 text-sm">
           <p><span className="font-medium">{e.sequenceName}</span>{e.otherInquiry ? " (started from an earlier inquiry by this person)" : ""}</p>
           {e.status === "active" && <p className="text-muted">Step {Math.min(e.nextStep + 1, e.totalSteps)} of {e.totalSteps}{e.nextRunAt ? ` · next message ${formatInZone(e.nextRunAt, tz)}` : ""} (checked again just before sending)</p>}
-          {e.status === "paused" && <p className="text-muted">Paused {e.pausedAt ? formatInZone(e.pausedAt, tz) : ""}. Step {e.nextStep + 1} of {e.totalSteps} is next when resumed.</p>}
+          {e.status === "paused" && <p className="text-muted">Paused {e.pausedAt ? formatInZone(e.pausedAt, tz) : ""}. Step {e.nextStep + 1} of {e.totalSteps} is next when resumed.{e.pauseReason ? ` ${e.pauseReason}.` : ""}</p>}
           {e.status === "completed" && <p className="text-muted">All {e.totalSteps} steps were handled {e.endedAt ? formatInZone(e.endedAt, tz) : ""}.</p>}
           {e.status === "stopped" && <p className="text-muted">Stopped {e.endedAt ? formatInZone(e.endedAt, tz) : ""}: {STOP_LABELS[e.stopCode as StopCode] ?? e.stopReason}.</p>}
           {open && canControl && (

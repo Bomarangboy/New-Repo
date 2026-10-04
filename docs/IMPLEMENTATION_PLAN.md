@@ -15,7 +15,7 @@ not a provider's live service unless stated.
 | 4 | Follow‑up sequences, booking connector (Cal.com, D‑10), appointments, confirmations & reminders | **Done** (simulated; live Cal.com check pending) |
 | 5 | Meta & Google connectors (lead forms + reporting), reporting definitions | **Done** (simulated; live use **blocked** by platform approvals) |
 | 6 | First external CRM connector (D‑11) | **Needs your input**: which CRM do pilot clients use? |
-| 7 | Billing/usage tooling, Health & Recovery Center, playbooks, backups & restore test, load test, scheduled summaries, deployment readiness | Next (can go before 6) |
+| 7 | Billing/usage tooling, Health & Recovery Center, playbooks, backups & restore test, load test, scheduled summaries, support, retention/deletion, demo workspaces, deployment readiness | **Done** (local measurements; staging drills at launch) |
 
 The sales demo grows with each stage (foundation is in Stage 1–2).
 
@@ -222,7 +222,7 @@ duplicate rule, reply re‑check, step crash recovery, step double‑handling gu
 - [ ] Google lead‑form webhook from a real form (no approval needed — just a deployed address).
 
 ### Deferred
-- Weekly emailed owner summaries (Package 3) → Stage 7. Sending conversions back to platforms → not planned (needs review).
+- Sending conversions back to platforms → not planned (needs review). (Weekly owner summaries were built in Stage 7.)
 
 ## Verification (Stage 5 run, 2026‑10‑04)
 237 unit + integration tests (Vitest, real PostgreSQL) and 34 browser tests (Stages 1–5) passed; typecheck, lint and
@@ -230,8 +230,49 @@ build clean. Mutation checks (each broken on purpose → a test failed): Meta si
 company/user/platform match, closed‑account rejection, Google test‑data handling, Package 3 check inside the import job,
 campaign‑id‑only crediting.
 
+## Stage 7 checklist
+
+### Implemented and verified
+- [x] Schema + RLS (`drizzle/0010`–`0013`): job priority, alerts, platform settings, billing terms, invoices (no deletes),
+      support tickets/messages (internal notes hidden by RLS), service notices, deletion records, ops evidence,
+      `pause_reason` on follow‑ups, restricted `app.purge_company_data()`; cross‑company tests.
+- [x] Monitoring: `/api/health` (public, no client data); grouped alerts with one email on open and one on recovery
+      (queue delay, dead jobs, intake failures, unknown sends, failure rate, ad reconnects/lead failures, usage 80/100 %,
+      overdue payments, database size). Health & Recovery page additions; redacted diagnostics download.
+- [x] Safe recovery: retry failed website submissions and ad leads (recorded once), re‑import ad date range (replace),
+      Bluewater automation pause per client, follow‑up steps > 24 h late paused for a person (never a backlog), job
+      priorities for lead‑critical work.
+- [x] Usage & billing: monthly usage per client, cost estimates from owner‑entered unit prices (“—” until set),
+      customers by month, billing terms, text limits (alert or pause automatic texts → email fallback), invoice records
+      with paid/failed/void and past‑due alerting after grace; owner read‑only Billing page.
+- [x] Support requests with BW‑ references, admin inbox, replies by email, internal notes; service notices with
+      recipient‑count confirmation; Help page with emergency‑pause guidance.
+- [x] Weekly owner summaries (Package 3), one per owner per week, opt‑out in Settings.
+- [x] Retention policy (RETENTION.md) and restricted deletion (archived only, exact name, MFA, DB‑enforced).
+- [x] Sales demo: prospect workspaces (create, invite, reset, extend, end access), presentation controls, automatic
+      cleanup 7 days after expiry, presentation script (DEMO.md). Refused in production.
+- [x] Backup/restore drill script — run locally on the sample DB and on ~1 year of pilot volume (2.37 M rows: 41 s),
+      isolation verified after restore; recorded as evidence. Found and fixed: owner `pg_dump` fails under forced RLS.
+- [x] Load test script — HTTP against the production build: 5 leads/s, p95 30 ms; burst 50; rate limit; 380 leads →
+      380 acknowledgments, no duplicates or losses. In‑process at 1‑year volume: 760 jobs drained in 11 s with 2 workers.
+- [x] Playbooks for every scenario in spec §16; MONITORING, RECOVERY, CAPACITY, BILLING, SUPPORT, RETENTION,
+      LAUNCH_CHECKLIST docs.
+
+### Implemented, awaiting live verification
+- [ ] Restore drill from a real Supabase backup into a separate project; load test against staging.
+- [ ] Uptime monitor + status page accounts; Vercel Firewall rules; Sentry (optional).
+- [ ] Walk‑through of the provider‑dashboard playbooks on staging.
+
+## Verification (Stage 7 run, 2026‑10‑04)
+253 unit + integration tests (Vitest, real PostgreSQL) and 39 browser tests (Stages 1–5 and 7) passed; typecheck, lint and
+build clean.
+Mutation checks (each safeguard broken on purpose → a test failed): exact‑name confirmation for deletion, database
+refusal to purge non‑archived companies, RLS hiding internal notes, RLS blocking client‑written notes, notice
+recipient‑count check, text‑limit fallback, late‑step pause, demo controls limited to demo workspaces; the restore drill
+failed as expected on a copy with RLS removed from one table. (Removing the alert “refresh” branch did not fail a test
+because the database's one‑open‑alert‑per‑key rule still prevents duplicates — the safeguard is the index.)
+
 ## What's next
-- **Stage 6 (external CRM)** needs one answer from you: which CRM (if any) do the first pilot clients use? Until then the
-  built‑in CRM covers everything and "external CRM" stays labeled unavailable.
-- **Stage 7** can go first: usage & cost tracking per client, Health & Recovery Center additions, incident playbooks
-  tested, backups + restore test, load test, weekly owner summaries, and a deployment‑readiness checklist.
+- **Launch path:** LAUNCH_CHECKLIST.md — deployment accounts (your approval for each purchase), staging drills, provider
+  approvals (Twilio A2P per client, Postmark, Meta, Google), legal review, prices.
+- **Stage 6 (external CRM)** still needs one answer: which CRM (if any) pilot clients use.

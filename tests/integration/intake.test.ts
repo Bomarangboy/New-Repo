@@ -1,3 +1,4 @@
+import { retryFailedIntake } from "@/server/ops/controls";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq, sql } from "drizzle-orm";
 import { closeDb } from "@/lib/db/client";
@@ -6,7 +7,7 @@ import { consentRecords, inquiries, intakeEvents } from "@/lib/db/schema";
 import { resolveCompanyContext } from "@/lib/authz/resolve";
 import { createIntakeSource, rotateSigningSecret, updateIntakeSource } from "@/server/intake/sources";
 import { contentHash, processIntakeEvent, receiveWebsiteSubmission, signBody, RATE_LIMIT_PER_MINUTE, type IntakeRequest } from "@/server/intake/website";
-import { addMember, identityFor, makeCompany, makeUser, setCompany } from "../helpers";
+import { addMember, adminCtx, identityFor, makeCompany, makeUser, setCompany } from "../helpers";
 import type { CompanyContext } from "@/lib/authz/context-types";
 
 let owner: CompanyContext;
@@ -160,6 +161,19 @@ describe("website form intake", () => {
     expect(await processIntakeEvent(e!.id)).toEqual({ status: "processed" });
     expect(await processIntakeEvent(e!.id)).toEqual({ status: "skipped" });
     expect(await inquiriesFor("recovered@example.com")).toHaveLength(1);
+  });
+
+  it("Health → Retry turns stored-but-failed submissions into leads, once (lead capture recovery)", async () => {
+    // In this file (not operations.test.ts) because the retry is platform-wide and this is the file that makes failed events.
+    await withSystemDb("test", (tx) => tx.insert(intakeEvents).values({
+      companyId, intakeSourceId: sourceId, idempotencyKey: "k:retry-button", contentHash: "y", status: "failed",
+      payload: { fields: { email: "retried@example.com", name: "Retried" } },
+    }));
+    const admin = await makeUser({ admin: true });
+    const r = await retryFailedIntake(adminCtx(admin));
+    expect(r.processed).toBeGreaterThanOrEqual(1);
+    await retryFailedIntake(adminCtx(admin));
+    expect(await inquiriesFor("retried@example.com")).toHaveLength(1);
   });
 
   it("disabled sources stop accepting submissions", async () => {

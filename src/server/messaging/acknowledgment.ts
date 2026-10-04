@@ -13,6 +13,7 @@ import { activeTemplate, isWithinWindow, loadSettings, nextWindowStart } from ".
 import { renderTemplate, varsFor } from "./templates";
 import { createOutbound, deliver } from "./send";
 import { transportDecision } from "./transport";
+import { automaticTextsPaused } from "@/server/billing";
 
 export const ACK_MAX_AGE_MS = 24 * 3600_000;
 
@@ -65,6 +66,7 @@ export async function decideAcknowledgment(tx: Tx, companyId: string, inquiryId:
   if (c.phoneE164) {
     if (await activeSuppression(tx, companyId, "sms", c.phoneE164)) reasons.push("their number opted out of texts");
     else if ((await latestConsent(tx, companyId, c.id, "sms")) !== true) reasons.push("no text permission recorded");
+    else if (await automaticTextsPaused(tx, companyId)) reasons.push("this month's text limit is reached");
     else channel = "sms";
   } else reasons.push("no phone number");
   if (!channel) {

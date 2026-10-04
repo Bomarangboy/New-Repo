@@ -25,6 +25,8 @@ import { stopEnrollments, type StopCode } from "./stop";
 export type StepRow = typeof sequenceSteps.$inferSelect;
 export type EnrollmentRow = typeof sequenceEnrollments.$inferSelect;
 const MIN = 60_000;
+/** A follow-up step this late (outage, stopped scheduler) is not sent automatically. */
+export const STALE_STEP_MS = 24 * 60 * MIN;
 
 /** Opt-out reasons stop a sequence; a bounced email only makes email unavailable. */
 const OPT_OUT_REASONS = ["opt_out_keyword", "unsubscribe_link", "manual", "spam_complaint"];
@@ -187,6 +189,13 @@ export async function handleSequenceStep(job: JobRow, now = new Date()): Promise
     if (!enr) return { kind: "done" as const, outcome: { status: "cancelled", result: "The follow-up no longer exists" } as JobOutcome };
     if (enr.status !== "active") return { kind: "done" as const, outcome: { status: "cancelled", result: `The follow-up is ${enr.status}` } as JobOutcome };
     if (enr.nextStep !== step) return { kind: "done" as const, outcome: { status: "cancelled", result: "This step was already handled" } as JobOutcome };
+    // After an outage, never fire a backlog of follow-ups: a step more than a day late is paused for a person to review.
+    if (now.getTime() - job.runAt.getTime() > STALE_STEP_MS) {
+      const reason = `Step ${step + 1} was due ${job.runAt.toISOString().slice(0, 16).replace("T", " ")} UTC but couldn't be sent on time; paused so a person can decide`;
+      await tx.update(sequenceEnrollments).set({ status: "paused", pausedAt: now, pauseReason: reason, updatedAt: now }).where(eq(sequenceEnrollments.id, enr.id));
+      await tx.insert(inquiryEvents).values({ companyId, inquiryId: enr.inquiryId, type: "follow_up_paused", actorType: "system", details: { reason } });
+      return { kind: "done" as const, outcome: { status: "cancelled", result: "Paused: step was more than a day late" } as JobOutcome };
+    }
 
     const d = await decideStep(tx, enr, now);
     switch (d.action) {

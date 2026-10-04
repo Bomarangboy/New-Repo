@@ -7,7 +7,7 @@ Status: ✅ Implemented & verified · 🟡 Implemented, awaiting live verificati
 | Spec § | Requirement | Status | Implementation | Verification | Notes / blockers |
 |---|---|---|---|---|---|
 | 1 | Brand: wordmark, navy/blue/white, responsive | ✅ | `components/brand.tsx`, `globals.css` | Screenshots (desktop/phone) | Logo recreated as type, not image |
-| 1 | Runs independently of Claude and owner's computer | 🟡 | Vercel + Supabase design | — | Needs deployment (Stage 7) |
+| 1 | Runs independently of Claude and owner's computer | 🟡 | Vercel + Supabase design | — | Needs deployment (LAUNCH_CHECKLIST.md) |
 | 2 | Three cumulative packages, backend entitlements | ✅ | `authz/entitlements.ts`, `resolve.ts` | unit + integration + browser | |
 | 2 | Lead capture separate from ad reporting | ✅ | `ad_lead_forms` vs `ad_reporting` | unit test | |
 | 3 | Spec, architecture, plan, instructions, decisions, matrix | ✅ | `docs/*`, `CLAUDE.md` | — | |
@@ -22,7 +22,7 @@ Status: ✅ Implemented & verified · 🟡 Implemented, awaiting live verificati
 | 4 | Isolation: conversations, jobs, senders, suppressions, notifications | ✅ | RLS `0005_messaging_security.sql` | messaging.test.ts | |
 | 4 | Isolation: sequences, enrollments, appointments, booking connection | ✅ | RLS `0007_sequences_booking_security.sql` | sequences/booking isolation tests | |
 | 4 | Isolation: ad connections, tokens, lead sources, metrics | ✅ | RLS `0009_ads_security.sql`, one‑Page‑one‑company index | ads.test.ts isolation | |
-| 4 | Isolation: files, tickets | ⬜ 7 | Same pattern | Each stage adds cross‑company tests | |
+| 4 | Isolation: tickets, billing, invoices, notices, alerts | ✅ | RLS `0011_operations_security.sql` (internal notes hidden by RLS) | operations.test.ts | No file storage exists |
 | 4 | Secrets out of frontend/logs/commits | ✅ | `env.ts`, `.gitignore`, `redactDetails` | unit tests | |
 | 4 | Controlled support access, no unrestricted impersonation | ✅ | `support_access_grants` | integration | |
 | 4 | Admin account recovery without bypass | ✅ (documented) | CLI‑only admin creation | — | OWNER_MANUAL.md |
@@ -49,20 +49,25 @@ Status: ✅ Implemented & verified · 🟡 Implemented, awaiting live verificati
 | 10 | Pagination, rate limits, historical + incremental import | ✅ | `clients/*`, `sync.ts` | ads-rules unit (faked HTTP), ads.test.ts | |
 | 10 | Support matrix; connected ≠ every function; blocked shown as blocked | ✅ | ADS.md, Connected Accounts copy | stage5 browser | |
 | 11 | Dashboards & reporting definitions (P1/P2) | ✅ | `server/metrics.ts`, METRICS.md, Help page | reconciliation tests, DST unit tests | |
-| 11 | Package 3: spend/performance, campaigns, conversion rates, recorded vs attributed sales, freshness, currencies | ✅ 🎭 | `server/ads/reports.ts`, Reports page, Overview card | ads.test.ts (totals reconcile, crediting rules) | Scheduled summaries → Stage 7 |
+| 11 | Package 3: spend/performance, campaigns, conversion rates, recorded vs attributed sales, freshness, currencies | ✅ 🎭 | `server/ads/reports.ts`, Reports page, Overview card | ads.test.ts (totals reconcile, crediting rules) | |
+| 11 | Scheduled owner summaries (Package 3) | ✅ 🎭 | `server/reports/weekly-summary.ts`, Settings toggle | weekly-summary unit (DST), operations.test.ts (once per owner) | D‑36; live email needs Postmark |
 | 12 | All Customers directory + filters | ✅ | `/admin` | browser test | |
 | 12 | Separate lifecycle / billing / suspension | ✅ | schema + `account-policy.ts` | unit + integration | |
 | 12 | Package & lifecycle history, reactivation, churn reason | ✅ | `server/companies.ts` | integration | |
 | 12 | Scheduled cancellation, service end | ✅ | `scheduleCancellation`, `applyDueCancellations` in maintenance | crm.test.ts, unit | |
-| 12 | Retention, deletion | ⬜ 7 | | | |
+| 12 | Retention by data type; restricted deletion with explanation | ✅ | RETENTION.md, `server/retention.ts`, `app.purge_company_data` | operations.test.ts (archived only, exact name, DB refusal, coverage of every table) | D‑38; legal review |
 | 13 | Routine config in database, sensitive changes logged | ✅ (Stage‑1 scope) | `audit_log` | integration | Templates/sequences later |
 | 14 | Onboarding checklist with statuses | ✅ (incl. follow‑up & booking steps) | `server/onboarding.ts` | screenshot | Steps fill in as features land |
-| 15–16 | Health center (jobs, unknown messages, senders) | ✅ (Stage‑3 scope) | `/admin/health`, `server/health.ts` | browser | Monitoring/tickets Stage 7 |
-| 15–16 | Monitoring, full playbooks, support tickets | ⬜ 7 | | | D‑17 |
-| 17 | Backups & disaster recovery | ⬜ 7 | Supabase daily backups | Restore test planned | |
-| 18 | Capacity targets & load test | ⬜ 7 | Targets proposed D‑15 | | |
-| 19 | Usage tracking, cost estimates | ⬜ 3/7 | | | D‑13, D‑16 |
+| 15 | Health & Recovery Center (availability, DB size/connections, queue, intake, sync, failures, backups, alerts) | ✅ | `/admin/health`, `server/health.ts`, `server/ops/*` | operations.test.ts, intake.test.ts (retry), browser | |
+| 15 | External monitoring, grouped alerts, recovery notices | ✅ / 🟡 | `/api/health`, `server/ops/alerts.ts` | operations.test.ts, stage7 browser | Monitor account at launch |
+| 15 | Safe controls (retry, reconcile range, pause/resume, diagnostics); no accumulated follow‑ups | ✅ | `server/ops/controls.ts`, late‑step pause (D‑39) | operations.test.ts | |
+| 16 | Incident playbooks (all §16 scenarios) | ✅ / 🟡 | `docs/playbooks/README.md` | recovery tools tested; provider‑dashboard steps to walk through on staging | |
+| 16 | Support tickets, incident notices with recipient approval | ✅ | `server/support.ts`, Help, `/admin/support`, `/admin/notices` | operations.test.ts, stage7 browser | Support hours D‑14 |
+| 17 | Backups & disaster recovery; tested restore with isolation check; RPO/RTO targets vs measured | ✅ local / 🟡 hosted | RECOVERY.md, `scripts/restore-test.ts` | Drill passed (sample + 2.37 M rows, 41 s); self‑test caught broken copy | Hosted drill on staging |
+| 18 | Capacity targets & load test; priorities; never lose leads | ✅ local / 🟡 hosted | CAPACITY.md, `scripts/load-test.ts`, job priorities (D‑40) | HTTP 5/s p95 30 ms, burst 50, 0 lost/duplicated | Staging run at launch |
+| 19 | Usage tracking, cost estimates, limits (what pauses), grace, payment failure, manual billing | ✅ | `server/billing.ts`, `/admin/billing`, company billing card, owner Billing page | operations.test.ts (limit → email, invoice → past due → alert → recovery) | D‑37; prices by owner |
 | 20 | Environments, env example, migrations | ✅ / 🟡 | `.env.example`, `drizzle/`, DEPLOYMENT.md | migrations run in tests | Hosting not created yet |
-| 21 | Sales demo | 🎭 foundation + dataset (leads, conversations, follow‑ups, appointments) + simulate reply/booking | demo guards, `server/demo/dataset.ts` | totals-reconcile test | Prospect access & presentation controls Stage 3+ |
+| 21 | Sales demo: prospect workspaces, presentation controls, cleanup, script | 🎭 ✅ | `server/demo/*`, `/admin/demo`, DEMO.md | operations.test.ts, stage7 browser | Demo deployment at launch |
 | 22 | Account inventory, owner manual, technical docs | ✅ (initial) | `docs/*` | — | Grows each stage |
 | 23 | Verification statuses & acceptance | ✅ | this file, IMPLEMENTATION_PLAN.md | — | |
+| 23 | Readiness vs approvals vs business decisions; what can be sold; pilot recommendation | ✅ | LAUNCH_CHECKLIST.md | — | |

@@ -71,6 +71,34 @@
       "when": 1791150799964,
       "tag": "0009_ads_security",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791152717008,
+      "tag": "0010_operations",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791152717934,
+      "tag": "0011_operations_security",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791152778303,
+      "tag": "0012_enrollment_pause_reason",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791153563896,
+      "tag": "0013_company_data_purge",
+      "breakpoints": true
     }
   ]
 }

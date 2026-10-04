@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight, Database, ScrollText, Users } from "lucide-react";
+import { ChevronRight, Database, Mail, Receipt, ScrollText, Users } from "lucide-react";
 import { ActionForm, Field, SubmitButton } from "@/components/forms";
 import { Badge, Card, PageHeader } from "@/components/ui";
 import { pageContext } from "@/lib/authz/guard";
@@ -7,7 +7,8 @@ import { roleCan } from "@/lib/authz/permissions";
 import { FEATURES, PACKAGE_LABELS, hasFeature, type Feature } from "@/lib/authz/entitlements";
 import { US_TIMEZONES } from "@/lib/timezones";
 import { getCompanySummary } from "@/server/team";
-import { chooseCrmModeAction, updateSettingsAction } from "../actions";
+import { chooseCrmModeAction, updateSettingsAction, weeklySummaryAction } from "../actions";
+import { weeklySummaryEnabled } from "@/server/reports/weekly-summary";
 
 export const metadata = { title: "Settings" };
 
@@ -20,6 +21,7 @@ const FEATURE_NAMES: Partial<Record<Feature, string>> = {
 
 export default async function SettingsPage() {
   const ctx = await pageContext("settings.view");
+  const weekly = await weeklySummaryEnabled(ctx);
   const company = await getCompanySummary(ctx);
   const canEdit = roleCan(ctx.role, "settings.manage") && ctx.policy.login === "full";
 
@@ -80,9 +82,20 @@ export default async function SettingsPage() {
           <Card>
             <nav className="divide-y divide-line">
               <Link href="/app/settings/team" className="flex items-center gap-3 py-3 font-medium hover:text-brand-600"><Users className="size-5" /> Team & invitations <ChevronRight className="ml-auto size-4" /></Link>
+              {roleCan(ctx.role, "billing.view") && <Link href="/app/settings/billing" className="flex items-center gap-3 py-3 font-medium hover:text-brand-600"><Receipt className="size-5" /> Billing & usage <ChevronRight className="ml-auto size-4" /></Link>}
               {roleCan(ctx.role, "audit.view") && <Link href="/app/settings/activity" className="flex items-center gap-3 py-3 font-medium hover:text-brand-600"><ScrollText className="size-5" /> Activity log <ChevronRight className="ml-auto size-4" /></Link>}
             </nav>
           </Card>
+          {weekly != null && (
+            <Card title="Weekly summary">
+              <ActionForm action={weeklySummaryAction} className="space-y-3">
+                <fieldset disabled={!roleCan(ctx.role, "settings.manage")} className="space-y-3">
+                  <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="on" defaultChecked={weekly} className="size-4 accent-brand-500" /> <Mail className="size-4 text-brand-500" /> Email owners last week&apos;s numbers every Monday morning</label>
+                  {roleCan(ctx.role, "settings.manage") && <SubmitButton variant="secondary">Save</SubmitButton>}
+                </fieldset>
+              </ActionForm>
+            </Card>
+          )}
         </div>
       </div>
     </>

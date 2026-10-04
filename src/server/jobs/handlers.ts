@@ -5,6 +5,7 @@ import { handleSequenceStep } from "@/server/sequences/engine";
 import { handleBookingMessage } from "@/server/booking/messages";
 import { handleAdLeadRecord, handleAdLeadReconcile } from "@/server/ads/leads";
 import { handleAdMetricsSync } from "@/server/ads/sync";
+import { handleWeeklySummary } from "@/server/reports/weekly-summary";
 
 /** Every background job kind and the code that runs it. Handlers must be safe to run twice. */
 export const HANDLERS: Record<string, JobHandler> = {
@@ -18,4 +19,5 @@ export const HANDLERS: Record<string, JobHandler> = {
   ad_lead_record: handleAdLeadRecord,
   ad_lead_reconcile: handleAdLeadReconcile,
   ad_metrics_sync: (job) => handleAdMetricsSync(job),
+  weekly_summary: (job) => handleWeeklySummary(job),
 };

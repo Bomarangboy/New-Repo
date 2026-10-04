@@ -14,7 +14,8 @@ Taxes, overages and price changes are not included. Nothing has been purchased.
 | Supabase PITR (optional) | add‑on | $100 / month per 7 days retention | only if a <24 h recovery point is required |
 | Postmark | Basic | $15 / month (10,000 emails) | free developer tier: 100 emails/month; [postmarkapp.com/pricing](https://postmarkapp.com/pricing) |
 | Domain | registrar | ~$10–20 / year | varies by registrar |
-| Uptime monitor / error tracking | free tiers to start | $0 | upgrade if alert limits are hit |
+| Uptime monitor + status page / error tracking | free tiers to start (UptimeRobot or Better Stack; Sentry) | $0 | upgrade if alert or monitor limits are hit |
+| Off‑platform backup copy | your existing cloud drive | $0 | weekly encrypted `pg_dump` (RECOVERY.md) |
 
 **Rough fixed floor for production:** ≈ $60–80/month before messaging usage and extra environments.
 **Development right now:** $0 (local machine; Supabase Free is fine for a personal test project).
@@ -36,6 +37,10 @@ Assumptions: 10 clients × 100 leads/month × (1 acknowledgment + 3 follow‑ups
 ## Booking (Package 2)
 Bluewater pays nothing for Cal.com: each client uses their own account. Follow‑ups and reminders add texts:
 the usage example above already assumes 3 follow‑ups per lead; add ~2 reminder texts per booked appointment.
+
+## Tracking actual costs in the app (Stage 7)
+Admin → Usage & Billing counts real text segments and emails per client per month. Enter the unit prices you confirm
+on the Twilio and Postmark pricing pages and it estimates provider cost per client (shown as “—” until you do).
 
 ## What could change these numbers
 More Vercel team members; higher database compute; PITR; dedicated email IPs (only at high volume);

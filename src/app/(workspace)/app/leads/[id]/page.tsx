@@ -46,7 +46,7 @@ function describe(type: string, d: Record<string, unknown>, names: Map<string, s
     case "follow_up_started": return `Follow-up started${d.origin === "manual" ? " by hand" : " automatically"}${d.confirmedPersonAsked ? " (team member confirmed the person asked to be contacted)" : ""}`;
     case "follow_up_not_started": return `Follow-up not started: ${d.reason}`;
     case "follow_up_stopped": return `Follow-up stopped: ${STOP_LABELS[d.code as StopCode] ?? d.reason}`;
-    case "follow_up_paused": return "Follow-up paused";
+    case "follow_up_paused": return d.reason ? `Follow-up paused automatically — ${d.reason}` : "Follow-up paused";
     case "follow_up_resumed": return "Follow-up resumed";
     case "follow_up_completed": return "Follow-up finished — all steps handled";
     case "follow_up_step_skipped": return String(d.reason ?? "A follow-up step was skipped");

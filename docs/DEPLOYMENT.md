@@ -116,13 +116,17 @@ Nothing is needed for staging/demo (they simulate). For real clients:
    automatically once DNS is correct.
 3. Update `APP_BASE_URL` and Supabase Site URL to the new address.
 
-## 5. Monitoring and backups
+## 5. Monitoring and backups (Stage 7 — see MONITORING.md and RECOVERY.md)
 
-- External uptime check on `https://app.yourdomain.com/login` (and `/api/health` once added in Stage 7) with
-  alerts to your phone directly from the monitoring service.
-- Error tracking (Sentry or similar) — Stage 7.
-- Supabase Pro daily backups (7 days). Optional PITR add‑on. Stage 7 adds an off‑platform encrypted
-  `pg_dump` copy and a documented, tested restore.
+- **Uptime monitor** (free tier of UptimeRobot or Better Stack): monitor `https://app.yourdomain.com/api/health`
+  every 1–5 minutes; alert on non‑200 twice in a row; alerts go to your phone through the monitor's own app/SMS (not
+  through Bluewater or Twilio). Create the free **status page** with the same service (`status.yourdomain.com`).
+- **In‑app alerts** need nothing extra: they email all administrators from the scheduler (Postmark system sender).
+- **Error tracking** (optional, Sentry free tier): not wired yet — add `SENTRY_DSN` when you create the account.
+- **Backups**: Supabase Pro daily (7 days). Weekly off‑platform copy: run `npx tsx scripts/restore-test.ts` against
+  production's owner connection from a trusted computer and store the resulting `backups/*.dump` encrypted outside
+  Supabase. **Quarterly** restore drill into a separate project (RECOVERY.md) and record it on Admin → Health.
+- **Load test** staging before launch: `npx tsx scripts/load-test.ts --url https://staging.yourdomain.com --record`.
 
 ## Release, verification and rollback
 
@@ -141,5 +145,5 @@ Nothing is needed for staging/demo (they simulate). For real clients:
 | Daily (automatic) | Backups; uptime checks; error alerts |
 | Weekly | Review errors and failed jobs; check message failure rates (Stage 3+) |
 | Monthly | Dependency/security updates on staging first; review costs vs. budget; review admin access list |
-| Quarterly | Restore test into an isolated project; review Meta/Google API versions (`META_GRAPH_VERSION`, `GOOGLE_ADS_API_VERSION`) against their deprecation schedules; rotate keys |
+| Quarterly | Restore drill into an isolated project (`scripts/restore-test.ts`, record on Admin → Health); review Meta/Google API versions (`META_GRAPH_VERSION`, `GOOGLE_ADS_API_VERSION`) against their deprecation schedules; rotate keys |
 | Yearly | Domain renewal; A2P registrations review; legal/terms review |

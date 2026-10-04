@@ -30,7 +30,7 @@ async function main() {
   if (!["development", "test"].includes(process.env.APP_ENV ?? "") || process.env.AUTH_PROVIDER !== "local") {
     throw new Error("Refusing to seed: this script only runs with APP_ENV=development or test and AUTH_PROVIDER=local.");
   }
-  for (const [email, name] of [["admin@bluewater.test", "Bluewater Admin"], ["ops@bluewater.test", "Bluewater Ops (second admin)"]] as const) {
+  for (const [email, name] of [["admin@bluewater.test", "Bluewater Admin"], ["ops@bluewater.test", "Bluewater Ops (second admin)"], ["support@bluewater.test", "Bluewater Support (third admin)"]] as const) {
     const auth = await ensureIdentity(email);
     await withSystemDb("dev seed", async (tx) => {
       await tx.insert(users).values({ authUserId: auth, email, fullName: name, isPlatformAdmin: true }).onConflictDoNothing();
