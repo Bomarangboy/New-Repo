@@ -99,6 +99,20 @@
       "when": 1791153563896,
       "tag": "0013_company_data_purge",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1791157897625,
+      "tag": "0014_studio_library",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1791157902240,
+      "tag": "0015_studio_library_security",
+      "breakpoints": true
     }
   ]
 }

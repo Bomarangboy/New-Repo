@@ -4,16 +4,18 @@ import { Badge, EmptyState, PageHeader } from "@/components/ui";
 import { pageContext } from "@/lib/authz/guard";
 import { formatInZone } from "@/lib/timezones";
 import { listConversations } from "@/server/messaging/inbox";
+import { studioForCompany } from "@/server/studio/runtime";
 
 export const metadata = { title: "Conversations" };
 
 export default async function ConversationsPage({ searchParams }: { searchParams: Promise<{ filter?: string }> }) {
   const ctx = await pageContext("conversation.view", "inbox");
+  const ui = await studioForCompany(ctx);
   const filter = (await searchParams).filter === "needs_reply" ? "needs_reply" : "all";
   const rows = await listConversations(ctx, filter);
   return (
     <>
-      <PageHeader title="Conversations" subtitle="Texts and emails with your leads, in one inbox." actions={
+      <PageHeader title={ui.t("page.conversations.title")} subtitle={ui.t("page.conversations.subtitle")} actions={
         <nav className="flex rounded-xl border border-line bg-white p-1" aria-label="Filter">
           {[["all", "All"], ["needs_reply", "Needs reply"]].map(([k, l]) => (
             <Link key={k} href={k === "all" ? "/app/conversations" : "/app/conversations?filter=needs_reply"} aria-current={filter === k ? "true" : undefined}
@@ -22,8 +24,8 @@ export default async function ConversationsPage({ searchParams }: { searchParams
         </nav>
       } />
       {rows.length === 0 ? (
-        <EmptyState icon={MessageCircle} title={filter === "needs_reply" ? "Nothing waiting for a reply" : "No conversations yet"}>
-          {filter === "needs_reply" ? "When a lead writes back, their conversation shows up here." : "Automatic acknowledgments and replies from your leads will appear here. You can also message a lead from their lead page."}
+        <EmptyState icon={MessageCircle} title={filter === "needs_reply" ? "Nothing waiting for a reply" : ui.t("empty.conversations.title")}>
+          {filter === "needs_reply" ? "When a lead writes back, their conversation shows up here." : ui.t("empty.conversations.body")}
         </EmptyState>
       ) : (
         <ul className="card divide-y divide-line overflow-hidden">

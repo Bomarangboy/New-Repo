@@ -17,6 +17,7 @@ against a real database in this repository — **not** a live provider.
 | Backups: restore drill incl. isolation, at 1‑year volume | ✅ Verified **locally** (41 s) | RECOVERY.md; self‑test caught a broken copy |
 | Capacity at pilot targets | ✅ Verified **locally** | CAPACITY.md |
 | Support requests, service notices, billing records, retention/deletion, demo workspaces | ✅ Verified | operations tests, stage7 browser tests |
+| Platform Studio and Sequence Library | ✅ Verified (simulated sending) | studio/library tests, stage8 browser tests |
 | External CRM sync | ⏸ Not built (Stage 6 — waiting for which CRM) | Built‑in CRM covers pilot |
 | Error tracking (Sentry) | ⬜ Not wired | Optional for pilot; health + alerts cover outages |
 

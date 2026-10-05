@@ -28,6 +28,8 @@ a Bluewater administrator under a time‑limited, reason‑required support gran
 | `sequence.manage` | ✅ | — | — | ✅ |
 | `sequence.enroll_contact` | ✅ | ✅ | — | — |
 | `sequence.pause_contact` | ✅ | ✅ | — | ✅ |
+| `library.view` | ✅ | ✅ | ✅ | ✅ |
+| `library.adopt` | ✅ | — | — | ✅ |
 | `contact.opt_out` | ✅ | ✅ | — | ✅ |
 | `automation.emergency_pause` | ✅ | — | — | ✅ |
 | `appointment.view` | ✅ | ✅ | ✅ | ✅ |

@@ -71,3 +71,13 @@ Status: ✅ Implemented & verified · 🟡 Implemented, awaiting live verificati
 | 22 | Account inventory, owner manual, technical docs | ✅ (initial) | `docs/*` | — | Grows each stage |
 | 23 | Verification statuses & acceptance | ✅ | this file, IMPLEMENTATION_PLAN.md | — | |
 | 23 | Readiness vs approvals vs business decisions; what can be sold; pilot recommendation | ✅ | LAUNCH_CHECKLIST.md | — | |
+| Studio | Branding, content, login, help, onboarding, package display texts; validated, sanitized, contrast-checked | ✅ | `server/studio/*`, `/admin/studio` | studio.test.ts, stage8 browser | No storage service needed |
+| Studio | Dashboard/menu layout (reorder, resize, show/hide, metric tiles, labels, landing by package, move up/down) | ✅ | `registry.ts`, Overview grid, workspace layout | studio.test.ts, stage8 browser (incl. phone width) | Visual only; server checks unchanged |
+| Studio | Platform/package/company levels, inherited vs override, reset, scope & affected companies before publish | ✅ | `service.ts` (`publishImpact`, `resolve`) | studio.test.ts | |
+| Studio | Draft → preview (role/package/company, desktop/phone) → publish; versions; restore; audit; edit-conflict protection | ✅ | `/admin/studio/edit`, `/studio-preview` | studio.test.ts, stage8 browser | Previews read Studio settings only |
+| Studio | Recovery outside the editor | ✅ | `STUDIO_SAFE_MODE`, `scripts/studio-reset.ts` | studio.test.ts (safe mode) | |
+| Library | Admin: create, import + validate, edit, preview, version, publish, retire, categories, recommend, adoption, evidence | ✅ | `server/library/admin.ts`, `/admin/library` | library.test.ts | Evidence needs real use |
+| Library | Client: search/filter → preview → copy → customize → validate → activate; package rules on server | ✅ 🎭 | `server/library/customer.ts`, `/app/library` | library.test.ts, stage8 browser | Sending simulated |
+| Library | Activation vs enrollment; checklist blocks activation; existing leads only by explicit enrollment | ✅ | `readiness.ts`, gate in `setSequenceState` | library.test.ts | |
+| Library | Versions & update diffs; retire; emergency pause with scope preview | ✅ | `applyUpdate`, `emergencyPause` | library.test.ts | |
+| Library | Evidence: denominators, thresholds, de-identified, “unverified” labels | ✅ | `computeEvidence`, `publishEvidence` | library.test.ts | |

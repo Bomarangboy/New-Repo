@@ -54,7 +54,7 @@ describe("configuration safety", () => {
   const base: Env = {
     APP_ENV: "development", APP_BASE_URL: "http://localhost:3000", DATABASE_URL: "x", AUTH_PROVIDER: "local",
     ENCRYPTION_KEY: "k".repeat(44), SYSTEM_EMAIL_TRANSPORT: "dev-outbox", SYSTEM_EMAIL_FROM: "x", LIVE_SENDING_ENABLED: false,
-    ADS_LIVE_ENABLED: false, META_GRAPH_VERSION: "v26.0", GOOGLE_ADS_API_VERSION: "v25",
+    ADS_LIVE_ENABLED: false, META_GRAPH_VERSION: "v26.0", GOOGLE_ADS_API_VERSION: "v25", STUDIO_SAFE_MODE: false,
   };
   const supa = { NEXT_PUBLIC_SUPABASE_URL: "u", NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "p", SUPABASE_SECRET_KEY: "s" };
   it("local login is refused outside development/test and on any hosted deployment", () => {

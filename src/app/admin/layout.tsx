@@ -3,20 +3,25 @@ import { UserMenu } from "@/components/user-menu";
 import { SimulationBanner } from "@/components/simulation-banner";
 import { Badge } from "@/components/ui";
 import { requirePlatformAdmin, requireSession } from "@/lib/authz/guard";
+import { studioForAdmin } from "@/server/studio/runtime";
 
-export const metadata = { title: { default: "Administrator", template: "%s · Administrator · Bluewater" } };
+export const metadata = { title: { default: "Administrator", template: "%s · Administrator" } };
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  await requirePlatformAdmin();
+  const ctx = await requirePlatformAdmin();
   const { user } = await requireSession();
+  const ui = await studioForAdmin(ctx);
   return (
     <AppShell
+      brand={ui.brand}
       nav={[
         { href: "/admin", label: "All Customers", icon: "building" },
         { href: "/admin/support", label: "Support", icon: "inbox" },
         { href: "/admin/health", label: "Health", icon: "health" },
         { href: "/admin/billing", label: "Usage & Billing", icon: "billing" },
         { href: "/admin/notices", label: "Service notices", icon: "notice" },
+        { href: "/admin/studio", label: "Platform Studio", icon: "palette" },
+        { href: "/admin/library", label: "Sequence Library", icon: "library" },
         { href: "/admin/demo", label: "Sales demo", icon: "demo" },
         { href: "/admin/activity", label: "Activity Log", icon: "log" },
       ]}

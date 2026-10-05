@@ -7,6 +7,7 @@ import { roleCan } from "@/lib/authz/permissions";
 import { hasFeature } from "@/lib/authz/entitlements";
 import { formatInZone } from "@/lib/timezones";
 import { assignableMembers, listLeads, SOURCE_LABELS, STAGES, STAGE_LABELS, type Stage } from "@/server/crm/leads";
+import { studioForCompany } from "@/server/studio/runtime";
 
 export const metadata = { title: "Leads" };
 
@@ -14,6 +15,7 @@ type SP = { q?: string; stage?: string; source?: string; assigned?: string; page
 
 export default async function LeadsPage({ searchParams }: { searchParams: Promise<SP> }) {
   const ctx = await pageContext("lead.view", "leads");
+  const ui = await studioForCompany(ctx);
   const sp = await searchParams;
   const stage = STAGES.includes(sp.stage as Stage) ? (sp.stage as Stage) : undefined;
   const source = sp.source && sp.source in SOURCE_LABELS ? sp.source : undefined;
@@ -29,16 +31,16 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   return (
     <>
       <PageHeader
-        title="Leads"
-        subtitle="Every inquiry, where it came from and what happened next."
+        title={ui.t("page.leads.title")}
+        subtitle={ui.t("page.leads.subtitle")}
         actions={<>
           {hasFeature(ctx.package, "pipeline_board") && <Link href="/app/leads/pipeline" className="btn-secondary"><KanbanSquare className="size-4" /> Pipeline</Link>}
           {roleCan(ctx.role, "lead.export") && (
             // A file download, not page navigation, so a plain link is correct here.
-            <a href="/app/leads/export" download className="btn-secondary"><Download className="size-4" /> Export</a>
+            <a href="/app/leads/export" download className="btn-secondary"><Download className="size-4" /> {ui.t("button.export_leads")}</a>
           )}
-          {roleCan(ctx.role, "lead.import") && canWrite && <Link href="/app/leads/import" className="btn-secondary"><Upload className="size-4" /> Import</Link>}
-          {roleCan(ctx.role, "lead.create") && canWrite && <Link href="/app/leads/new" className="btn-primary"><Plus className="size-4" /> Add lead</Link>}
+          {roleCan(ctx.role, "lead.import") && canWrite && <Link href="/app/leads/import" className="btn-secondary"><Upload className="size-4" /> {ui.t("button.import_leads")}</Link>}
+          {roleCan(ctx.role, "lead.create") && canWrite && <Link href="/app/leads/new" className="btn-primary"><Plus className="size-4" /> {ui.t("button.add_lead")}</Link>}
         </>}
       />
 
@@ -61,9 +63,9 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
       </form>
 
       {rows.length === 0 ? (
-        <EmptyState icon={Users} title={filtered ? "No leads match these filters" : "No leads yet"}
-          action={!filtered && roleCan(ctx.role, "integration.manage") ? <Link href="/app/connected-accounts" className="btn-primary">Connect your website form</Link> : undefined}>
-          {filtered ? "Try a different search or clear the filters." : "New inquiries from your website form appear here automatically. You can also add a lead by hand or import a spreadsheet."}
+        <EmptyState icon={Users} title={filtered ? "No leads match these filters" : ui.t("empty.leads.title")}
+          action={!filtered && roleCan(ctx.role, "integration.manage") ? <Link href="/app/connected-accounts" className="btn-primary">{ui.t("button.connect_form")}</Link> : undefined}>
+          {filtered ? "Try a different search or clear the filters." : ui.t("empty.leads.body")}
         </EmptyState>
       ) : (
         <div className="card overflow-hidden">

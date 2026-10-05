@@ -59,7 +59,7 @@ export default async function DemoPage() {
                 <p className="-mt-2 mb-4 flex flex-wrap items-center gap-2 text-sm text-muted">
                   <Badge tone="amber">Demo — Sample Data</Badge>
                   {deleted ? <Badge>Expired · data deleted</Badge> : expired ? <Badge tone="red">Expired · deleted after {DEMO_GRACE_DAYS} days</Badge> : <Badge tone="green">Open until {day(c.demoExpiresAt)}</Badge>}
-                  <span>{PACKAGE_LABELS[c.package]}</span> · <span>Owner: {owner ?? "not invited"}</span> · <Link href={`/admin/companies/${c.id}`} className="text-brand-600 hover:underline">Company page</Link>
+                  <span>{PACKAGE_LABELS[c.package]}</span> · <span>Owner: {owner ?? "not invited"}</span> · <Link href={`/admin/companies/${c.id}`} className="text-brand-600 hover:underline">Company page</Link> · <Link href={`/admin/studio/edit?scope=company:${c.id}&tab=dashboard`} className="text-brand-600 hover:underline">Customize its look (Studio)</Link>
                 </p>
                 {!deleted && (
                   <div className="space-y-4">

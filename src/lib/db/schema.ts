@@ -14,7 +14,10 @@ import {
   uniqueIndex,
   uuid,
   integer,
+  customType,
 } from "drizzle-orm/pg-core";
+
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => "bytea" });
 
 /**
  * All application tables live in the `app` schema, not `public`.
@@ -1242,4 +1245,185 @@ export const opsRecords = app.table(
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("ops_records_kind_idx").on(t.kind, t.recordedAt)],
+);
+
+
+/* ======================= Platform Studio (appearance & content) ======================= */
+
+/**
+ * Studio configuration is stored per SCOPE: "platform" (defaults), "package:<tier>" or "company:<uuid>".
+ * Each scope holds only the values set at that level (overrides); the effective configuration is the
+ * platform defaults, then the package's, then the company's. Drafts are platform-only; published rows are
+ * readable by the company they apply to (and platform/package rows by everyone) so pages can render them.
+ */
+export const studioDrafts = app.table("studio_drafts", {
+  scopeKey: text("scope_key").primaryKey(),
+  scopeKind: text("scope_kind").notNull(), // platform | package | company
+  packageTier: packageTier("package_tier"),
+  companyId: uuid("company_id").references(() => companies.id, { onDelete: "cascade" }),
+  config: jsonb("config").$type<Record<string, unknown>>().notNull().default({}),
+  /** Optimistic lock: every save must name the revision it started from. */
+  revision: integer("revision").notNull().default(0),
+  updatedByUserId: uuid("updated_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const studioPublished = app.table("studio_published", {
+  scopeKey: text("scope_key").primaryKey(),
+  scopeKind: text("scope_kind").notNull(),
+  packageTier: packageTier("package_tier"),
+  companyId: uuid("company_id").references(() => companies.id, { onDelete: "cascade" }),
+  config: jsonb("config").$type<Record<string, unknown>>().notNull().default({}),
+  version: integer("version").notNull(),
+  publishedByUserId: uuid("published_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  publishedAt: timestamp("published_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Every publication, kept forever (restore copies one back into the draft). Platform-only, append-only. */
+export const studioVersions = app.table(
+  "studio_versions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    scopeKey: text("scope_key").notNull(),
+    version: integer("version").notNull(),
+    config: jsonb("config").$type<Record<string, unknown>>().notNull(),
+    summary: text("summary").notNull(),
+    changes: jsonb("changes").$type<string[]>().notNull().default([]),
+    schemaVersion: integer("schema_version").notNull().default(1),
+    publishedByUserId: uuid("published_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    publishedAt: timestamp("published_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("studio_versions_scope_version").on(t.scopeKey, t.version)],
+);
+
+/** Logos and favicon (validated raster images only; never SVG or anything executable). Platform-only. */
+export const studioAssets = app.table("studio_assets", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  kind: text("kind").notNull(), // logo_light | logo_dark | favicon
+  mime: text("mime").notNull(),
+  bytes: bytea("bytes").notNull(),
+  sha256: text("sha256").notNull(),
+  sizeBytes: integer("size_bytes").notNull(),
+  width: integer("width").notNull(),
+  height: integer("height").notNull(),
+  uploadedByUserId: uuid("uploaded_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/* ======================= Sequence Library ======================= */
+
+export const libraryCategories = app.table("library_categories", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull().unique(),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** A reusable acknowledgment template or follow-up sequence curated by Bluewater. */
+export const libraryTemplates = app.table(
+  "library_templates",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    slug: text("slug").notNull().unique(),
+    kind: text("kind").notNull(), // acknowledgment | sequence
+    name: text("name").notNull(),
+    description: text("description").notNull(),
+    industry: text("industry").notNull(),
+    objective: text("objective").notNull(),
+    categoryId: uuid("category_id").references(() => libraryCategories.id, { onDelete: "set null" }),
+    channels: jsonb("channels").$type<string[]>().notNull().default([]),
+    stepCount: integer("step_count").notNull().default(1),
+    durationDays: integer("duration_days").notNull().default(0),
+    requiredPackage: packageTier("required_package").notNull(),
+    requiredIntegrations: jsonb("required_integrations").$type<string[]>().notNull().default([]),
+    requiredFields: jsonb("required_fields").$type<string[]>().notNull().default([]),
+    recommended: boolean("recommended").notNull().default(false),
+    /** draft (never shown to clients) | published | paused (emergency) | retired (no new copies) */
+    status: text("status").notNull().default("draft"),
+    latestVersion: integer("latest_version"),
+    statusReason: text("status_reason"),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [index("library_templates_status_idx").on(t.status)],
+);
+
+/** Work-in-progress content for the next version. Platform-only (clients never see unpublished text). */
+export const libraryTemplateDrafts = app.table("library_template_drafts", {
+  templateId: uuid("template_id").primaryKey().references(() => libraryTemplates.id, { onDelete: "cascade" }),
+  definition: jsonb("definition").$type<Record<string, unknown>>().notNull(),
+  revision: integer("revision").notNull().default(0),
+  updatedByUserId: uuid("updated_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Published versions never change (copies record which one they came from). */
+export const libraryTemplateVersions = app.table(
+  "library_template_versions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    templateId: uuid("template_id").notNull().references(() => libraryTemplates.id, { onDelete: "restrict" }),
+    version: integer("version").notNull(),
+    definition: jsonb("definition").$type<Record<string, unknown>>().notNull(),
+    changelog: text("changelog"),
+    publishedByUserId: uuid("published_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    publishedAt: timestamp("published_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("library_template_versions_key").on(t.templateId, t.version)],
+);
+
+/**
+ * Aggregate, de-identified outcome evidence for a template (computed by an administrator from real customer
+ * use; simulated, demo and test activity excluded). Shown to clients only when published AND above the
+ * minimum sample. Holds no company or person identifiers.
+ */
+export const libraryEvidence = app.table("library_evidence", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  templateId: uuid("template_id").notNull().references(() => libraryTemplates.id, { onDelete: "cascade" }),
+  periodStart: date("period_start").notNull(),
+  periodEnd: date("period_end").notNull(),
+  industry: text("industry"),
+  leadSource: text("lead_source"),
+  companies: integer("companies").notNull(),
+  enrolled: integer("enrolled").notNull(),
+  messagesSent: integer("messages_sent").notNull(),
+  delivered: integer("delivered").notNull(),
+  failed: integer("failed").notNull(),
+  replied: integer("replied").notNull(),
+  booked: integer("booked").notNull(),
+  optedOut: integer("opted_out").notNull(),
+  published: boolean("published").notNull().default(false),
+  computedByUserId: uuid("computed_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  computedAt: timestamp("computed_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** A company's private copy of a library template (company-owned; editing never touches the original). */
+export const libraryCopies = app.table(
+  "library_copies",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    templateId: uuid("template_id").notNull().references(() => libraryTemplates.id, { onDelete: "restrict" }),
+    templateVersion: integer("template_version").notNull(),
+    kind: text("kind").notNull(), // acknowledgment | sequence
+    /** For sequences: the company's own sequence created from the template (edited in the normal editor). */
+    sequenceId: uuid("sequence_id"),
+    /** For acknowledgments: the draft wording until it is activated. */
+    draft: jsonb("draft").$type<Record<string, unknown>>().notNull().default({}),
+    /** Owner confirmations from the setup checklist. */
+    setup: jsonb("setup").$type<Record<string, unknown>>().notNull().default({}),
+    status: text("status").notNull().default("draft"), // draft | active | archived
+    /** Acknowledgment versions in use before activation (for an emergency rollback). */
+    previous: jsonb("previous").$type<Record<string, unknown>>().notNull().default({}),
+    activatedAt: timestamp("activated_at", { withTimezone: true }),
+    activatedByUserId: uuid("activated_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [
+    unique("library_copies_company_id_key").on(t.companyId, t.id),
+    uniqueIndex("library_copies_sequence_key").on(t.sequenceId),
+    foreignKey({ columns: [t.companyId, t.sequenceId], foreignColumns: [sequences.companyId, sequences.id], name: "library_copies_sequence_fk" }).onDelete("cascade"),
+    index("library_copies_template_idx").on(t.templateId),
+  ],
 );

@@ -5,8 +5,8 @@ import { SimulationBanner } from "@/components/simulation-banner";
 import { Badge } from "@/components/ui";
 import { pageContext, requireSession } from "@/lib/authz/guard";
 import { listUserCompanies } from "@/lib/authz/resolve";
-import { PACKAGE_NAMES } from "@/lib/authz/entitlements";
-import { visibleNav } from "@/lib/nav";
+import { studioForCompany } from "@/server/studio/runtime";
+import type { IconName } from "@/components/shell";
 import { switchCompanyAction } from "./actions";
 import { roleCan } from "@/lib/authz/permissions";
 import { needsReplyCount } from "@/server/messaging/inbox";
@@ -18,7 +18,9 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
   const companies = await listUserCompanies(user.id);
   const automationPaused = await isAutomationPaused(ctx);
   const waiting = roleCan(ctx.role, "conversation.view") ? await needsReplyCount(ctx) : 0;
-  const nav = visibleNav(ctx.role, ctx.package).map(({ href, label, icon }) => ({ href, label, icon, badge: href === "/app/conversations" ? waiting : undefined }));
+  const ui = await studioForCompany(ctx);
+  // Menu order/labels come from Platform Studio; which items exist still depends on role and package (every page re-checks on the server).
+  const nav = ui.nav(ctx.role, ctx.package).map(({ href, label, icon }) => ({ href, label, icon: icon as IconName, badge: href === "/app/conversations" ? waiting : undefined }));
 
   const switcher = (
     <details className="group relative mx-1">
@@ -60,18 +62,23 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
   );
 
   return (
+    <>
+    {/* Package/company-level Studio colors (validated values only). */}
+    <style dangerouslySetInnerHTML={{ __html: ui.css(":root") }} />
     <AppShell
+      brand={ui.brand}
       nav={nav}
       banner={banner}
       sidebarTop={switcher}
       topbar={
         <>
-          <span className="hidden sm:inline"><Badge tone="blue">{PACKAGE_NAMES[ctx.package]}</Badge></span>
+          <span className="hidden sm:inline"><Badge tone="blue">{ui.packageName(ctx.package)}</Badge></span>
           <UserMenu name={user.fullName} email={user.email} isAdmin={user.isPlatformAdmin} />
         </>
       }
     >
       {children}
     </AppShell>
+    </>
   );
 }

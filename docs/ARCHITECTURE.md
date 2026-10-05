@@ -146,6 +146,17 @@ The external CRM is the system of record in external mode.
 - **Backups:** because RLS is *forced*, logical dumps run with `--enable-row-security` in system scope
   (`scripts/restore-test.ts`).
 
+## Platform Studio and Sequence Library (Stage 8)
+- **Studio:** a fixed settings registry (`src/server/studio/registry.ts`) stored as flat key/value overrides per scope
+  (platform, package, company). Pages read only PUBLISHED values through `runtime.ts` (company workspaces via
+  `withCompanyDb`; sign-in pages via a platform-only read). Brand colors become CSS variables that override the
+  Tailwind theme tokens; nothing executable is ever stored. The preview route (`/studio-preview`) is the only page that
+  may be framed, and only by the app itself.
+- **Library:** templates and immutable versions are platform data that clients can read once published; a copy is a
+  company-owned `library_copies` row pointing at an ordinary `sequences` row (or holding draft acknowledgment text), so
+  the existing engine runs it. `libraryActivationGate` is called by the standard `setSequenceState`, so the checklist
+  can't be bypassed.
+
 ## Environments
 
 See DECISIONS.md D‑12 and DEPLOYMENT.md. The **sales demo** is a separate deployment with a separate

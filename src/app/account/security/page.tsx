@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Wordmark } from "@/components/brand";
+import { studioPlatform } from "@/server/studio/runtime";
 import { ActionForm, Field, SubmitButton } from "@/components/forms";
 import { Badge, Card } from "@/components/ui";
 import { SimulationBanner } from "@/components/simulation-banner";
@@ -12,6 +13,7 @@ import { MfaEnrollForm } from "./mfa-form";
 export const metadata = { title: "Password & security" };
 
 export default async function SecurityPage({ searchParams }: { searchParams: Promise<{ required?: string }> }) {
+  const brand = (await studioPlatform()).brand;
   const { required } = await searchParams;
   const { identity, user } = await requireSession();
   const enrolled = await authProvider().mfaEnrolled(identity.authUserId);
@@ -19,7 +21,7 @@ export default async function SecurityPage({ searchParams }: { searchParams: Pro
     <div className="min-h-dvh">
       <SimulationBanner />
       <header className="flex items-center justify-between border-b border-line bg-white px-4 py-3 sm:px-8">
-        <Wordmark size="sm" />
+        <Wordmark size="sm" brand={brand} />
         <Link href={user.isPlatformAdmin ? "/admin" : "/app"} className="btn-secondary"><ArrowLeft className="size-4" /> Back</Link>
       </header>
       <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-8">

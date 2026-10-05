@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Lock } from "lucide-react";
 import { Wordmark } from "@/components/brand";
+import { studioPlatform } from "@/server/studio/runtime";
 import { signOutAction } from "@/app/(auth)/actions";
 
 const REASONS: Record<string, { title: string; body: string }> = {
@@ -12,11 +13,12 @@ const REASONS: Record<string, { title: string; body: string }> = {
 };
 
 export default async function RestrictedPage({ searchParams }: { searchParams: Promise<{ reason?: string }> }) {
+  const brand = (await studioPlatform()).brand;
   const { reason } = await searchParams;
   const r = REASONS[reason ?? ""] ?? REASONS.forbidden!;
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center px-4 text-center">
-      <Wordmark size="md" />
+      <Wordmark size="md" brand={brand} />
       <div className="card mt-8 w-full max-w-md p-8">
         <span className="mx-auto mb-4 grid size-12 place-items-center rounded-2xl bg-amber-50 text-amber-600"><Lock className="size-6" /></span>
         <h1 className="text-xl font-bold">{r.title}</h1>

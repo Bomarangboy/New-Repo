@@ -48,6 +48,8 @@ const schema = z.object({
   /** Manager (MCC) account id, digits only, if Bluewater accesses clients through a manager account. */
   GOOGLE_ADS_LOGIN_CUSTOMER_ID: z.string().regex(/^\d{10}$/).optional(),
   GOOGLE_ADS_API_VERSION: z.string().regex(/^v\d+$/).default("v25"),
+  /** Recovery switch: "true" ignores every Platform Studio setting and shows the built-in look (docs/STUDIO.md). */
+  STUDIO_SAFE_MODE: bool,
 });
 
 export type Env = z.infer<typeof schema>;

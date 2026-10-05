@@ -5,13 +5,13 @@ import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import {
   BarChart3, CalendarDays, Home, LifeBuoy, Link2, Menu, MessageCircle, Settings, Users, X, Zap,
-  Building2, ScrollText, Activity, Presentation, Receipt, Megaphone, Inbox,
+  Building2, ScrollText, Activity, Presentation, Receipt, Megaphone, Inbox, LibraryBig, Palette,
 } from "lucide-react";
-import { Wordmark } from "./brand";
+import { Wordmark, type BrandProps, DEFAULT_BRAND } from "./brand";
 
 const ICONS = {
   home: Home, users: Users, message: MessageCircle, zap: Zap, calendar: CalendarDays, chart: BarChart3,
-  link: Link2, settings: Settings, help: LifeBuoy, building: Building2, log: ScrollText, health: Activity, demo: Presentation, billing: Receipt, notice: Megaphone, inbox: Inbox,
+  link: Link2, settings: Settings, help: LifeBuoy, building: Building2, log: ScrollText, health: Activity, demo: Presentation, billing: Receipt, notice: Megaphone, inbox: Inbox, library: LibraryBig, palette: Palette,
 } as const;
 export type IconName = keyof typeof ICONS;
 
@@ -45,13 +45,13 @@ function NavLinks({ items, onNavigate }: { items: ShellNavItem[]; onNavigate?: (
 }
 
 /** Responsive application frame: fixed navy sidebar on desktop, slide-over menu on phones. */
-export function AppShell({ nav, sidebarTop, topbar, banner, children }: {
-  nav: ShellNavItem[]; sidebarTop?: ReactNode; topbar?: ReactNode; banner?: ReactNode; children: ReactNode;
+export function AppShell({ nav, sidebarTop, topbar, banner, children, brand = DEFAULT_BRAND }: {
+  nav: ShellNavItem[]; sidebarTop?: ReactNode; topbar?: ReactNode; banner?: ReactNode; children: ReactNode; brand?: BrandProps;
 }) {
   const [open, setOpen] = useState(false);
   const sidebar = (
     <div className="flex h-full flex-col gap-6 bg-gradient-to-b from-navy-900 to-navy-950 px-4 py-6">
-      <div className="px-2"><Wordmark onDark size="md" /></div>
+      <div className="px-2"><Wordmark onDark size="md" brand={brand} /></div>
       {sidebarTop}
       <NavLinks items={nav} onNavigate={() => setOpen(false)} />
     </div>
@@ -72,7 +72,7 @@ export function AppShell({ nav, sidebarTop, topbar, banner, children }: {
             <button className="btn-secondary px-2.5 lg:hidden" onClick={() => setOpen(true)} aria-label="Open menu">
               {open ? <X className="size-5" /> : <Menu className="size-5" />}
             </button>
-            <div className="lg:hidden"><Wordmark size="sm" /></div>
+            <div className="lg:hidden"><Wordmark size="sm" brand={brand} /></div>
             <div className="ml-auto flex items-center gap-2">{topbar}</div>
           </header>
           <main className="mx-auto max-w-7xl px-4 py-6 sm:px-8 sm:py-8">{children}</main>

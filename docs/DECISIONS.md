@@ -52,6 +52,8 @@ Status key: **Decided** (owner approved) · **Assumed** (reasonable default; rev
 | D‑40 | Work priorities under load | **Assumed** — new‑lead work first, reports last | — |
 | D‑41 | Alerts | **Assumed** — grouped, email on open/recover only; public `/api/health` for the external monitor | Monitor account (owner) |
 | D‑42 | Sales‑demo prospect workspaces | **Assumed** — demo site only; 1–30 days; deleted 7 days after expiry | Demo deployment |
+| D‑45 | Platform Studio scope | **Assumed** — fixed list of appearance/wording/menu/layout settings; 3 levels; draft → preview → publish; admins only | — |
+| D‑46 | Sequence Library | **Assumed** — Bluewater-curated; copies are normal company sequences/templates; activation ≠ enrollment; Connect = instant replies only | — |
 | D‑44 | Package names | **Decided** — Bluewater Connect (1), Bluewater Engage (2), Bluewater Insight (3) | — |
 | D‑43 | Support requests & notices | **Assumed** — in‑app tickets with BW‑ references; notices need recipient‑count confirmation | — |
 
@@ -345,6 +347,30 @@ Each extra Supabase project adds compute cost (one Micro is covered by the inclu
   is **Bluewater Insight** (performance reporting). Still cumulative: Engage includes Connect; Insight includes both.
 - Only the names people see changed. Internal codes (`instant_response`, `follow_up_booking`, `performance_reporting`) stay,
   so permissions, history and billing records are unaffected. SPECIFICATION.md keeps its original "Package 1/2/3" wording.
+
+### D‑45 Platform Studio — Assumed (Stage 8)
+- Only settings in a fixed registry can be edited (appearance, wording, menu order/labels/visibility, landing page,
+  Overview tiles and cards). Security, permissions, packages, prices, opt-out safeguards, critical notices and the
+  activity log are deliberately out of reach. Hiding is visual only; the server still checks every page.
+- Levels: platform → package → company; lower levels store only what they change, so default changes never overwrite
+  explicit customizations. Optimistic locking on drafts; permanent version history; restore = copy into draft.
+- Images are stored in the database (small, validated PNG/JPEG/WebP/ICO; no SVG) — no storage service needed.
+- Fonts limited to the bundled Figtree, the device's system font, or a classic serif (no third-party font loading).
+- Recovery outside the editor: `STUDIO_SAFE_MODE=true`, or `scripts/studio-reset.ts`.
+- No delegated editor role yet (platform administrators only). No public marketing site exists, so none is editable.
+
+### D‑46 Sequence Library — Assumed (Stage 8)
+- Bluewater-curated publishing only (no customer submissions). Supported import: `bluewater.library/v1` JSON; data
+  only, validated completely before saving; personal data, links and secrets refused.
+- A copy becomes an ordinary company sequence (or acknowledgment draft), so the existing engine and all its
+  safeguards apply. Copying never sends or enrolls. Activation is explicit and gated by a setup checklist (also
+  enforced in the normal on/off switch). Automatic enrollment of FUTURE eligible leads is a separate choice; existing
+  and imported leads are only ever enrolled one by one with confirmation.
+- New template versions never change copies; businesses get a diff and choose (merge / replace / keep).
+  Retirement blocks new copies only. Emergency pause pauses (never stops) affected follow-ups and reverts activated
+  acknowledgments, with a scope preview and confirmed count.
+- Evidence is aggregate and de-identified, excludes simulated/demo/test activity, and is shown to clients only above
+  50 enrolled people across 3 businesses, labeled as observed outcomes. Everything else is labeled “Unverified”.
 
 ### D‑15 measured (Stage 7)
 - Load test and restore drill results are in CAPACITY.md and RECOVERY.md (local measurements; staging run pending).

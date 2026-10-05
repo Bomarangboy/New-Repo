@@ -21,7 +21,7 @@ function StatusBadge({ p }: { p: Platform }) {
   return c.mode === "simulated" ? <Badge tone="amber"><FlaskConical className="size-3" /> Connected — simulated</Badge> : <Badge tone="green" dot>Connected</Badge>;
 }
 
-export function AdPlatformSection({ p, tz, canManage }: { p: Platform; tz: string; canManage: boolean }) {
+export function AdPlatformSection({ p, tz, canManage, upgradeText = "Ad spend reporting is part of Bluewater Insight." }: { p: Platform; tz: string; canManage: boolean; upgradeText?: string }) {
   const c = p.connection;
   const pages = p.sources.filter((s) => s.kind === "meta_page");
   const google = p.sources.find((s) => s.kind === "google_webhook");
@@ -36,7 +36,7 @@ export function AdPlatformSection({ p, tz, canManage }: { p: Platform; tz: strin
       </div>
       <p className="mb-3 text-sm text-muted">
         {p.platform === "meta" ? "Facebook and Instagram lead-form leads arrive in Bluewater automatically." : "Google lead-form leads arrive in Bluewater automatically."}
-        {p.reportingIncluded ? " Ad spend, clicks and results appear under Reports." : " Ad spend reporting is part of Bluewater Insight."}
+        {p.reportingIncluded ? " Ad spend, clicks and results appear under Reports." : ` ${upgradeText}`}
       </p>
 
       {!c && p.mode === "unavailable" && <p className="mb-3 rounded-xl bg-canvas px-3 py-2 text-xs text-muted">{WAITING[p.platform]}</p>}

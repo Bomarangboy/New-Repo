@@ -15,6 +15,7 @@ import { AdPlatformSection } from "./ads-card";
 import { adsOverview } from "@/server/ads/connections";
 import { getBookingSettings } from "@/server/booking/settings";
 import { isSimulatedEnvironment } from "@/lib/env";
+import { studioForCompany } from "@/server/studio/runtime";
 
 export const metadata = { title: "Connected Accounts" };
 
@@ -33,6 +34,7 @@ function Unavailable({ icon: Icon, name, what, why }: { icon: typeof Globe; name
 
 export default async function ConnectedAccountsPage({ searchParams }: { searchParams: Promise<{ created?: string; connected?: string; problem?: string }> }) {
   const ctx = await pageContext("integration.view", "lead_sources");
+  const ui = await studioForCompany(ctx);
   const { created, connected, problem } = await searchParams;
   const sources = await listIntakeSources(ctx);
   const problems = await recentIntakeProblems(ctx, 10);
@@ -43,7 +45,7 @@ export default async function ConnectedAccountsPage({ searchParams }: { searchPa
 
   return (
     <>
-      <PageHeader title="Connected Accounts" subtitle="Where your leads come from, and the tools linked to Bluewater. Bluewater never asks for your account passwords." />
+      <PageHeader title={ui.t("page.connected.title")} subtitle={ui.t("page.connected.subtitle")} />
 
       {connected && <p role="status" className="mb-6 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{connected === "meta" ? "Meta" : "Google Ads"} connected. Choose what to use below.</p>}
       {problem && <p role="alert" className="mb-6 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{problem.slice(0, 300)}</p>}
@@ -142,7 +144,7 @@ export default async function ConnectedAccountsPage({ searchParams }: { searchPa
 
       <Card title="Advertising accounts" className="mb-6">
         {ads ? (
-          <div className="space-y-5">{ads.map((p) => <AdPlatformSection key={p.platform} p={p} tz={ctx.timezone} canManage={canManage} />)}</div>
+          <div className="space-y-5">{ads.map((p) => <AdPlatformSection key={p.platform} p={p} tz={ctx.timezone} canManage={canManage} upgradeText={ui.upgrade("performance_reporting")} />)}</div>
         ) : <p className="text-sm text-muted">Only people who manage connections can see advertising accounts.</p>}
       </Card>
 
@@ -176,7 +178,7 @@ export default async function ConnectedAccountsPage({ searchParams }: { searchPa
         </Card>
         {!hasFeature(ctx.package, "booking") && (
           <Card title="Scheduling">
-            <div className="flex items-start gap-3"><CalendarDays className="mt-0.5 size-5 text-slate-400" /><p className="text-sm text-muted">Booking links, Cal.com connection and appointment reminders are part of Bluewater Engage.</p></div>
+            <div className="flex items-start gap-3"><CalendarDays className="mt-0.5 size-5 text-slate-400" /><p className="text-sm text-muted">{ui.upgrade("follow_up_booking")}</p></div>
           </Card>
         )}
       </div>

@@ -13,6 +13,7 @@ import { TemplateEditor } from "./template-editor";
 import { listSequences } from "@/server/sequences/manage";
 import { getBookingSettings } from "@/server/booking/settings";
 import { createSequenceAction, saveReminderSettingsAction } from "./sequence-actions";
+import { studioForCompany } from "@/server/studio/runtime";
 
 const TEMPLATE_NAMES: Record<string, string> = {
   ack_sms: "Acknowledgment text", ack_email: "Acknowledgment email", booking_confirm_sms: "Booking confirmation text", booking_confirm_email: "Booking confirmation email",
@@ -27,6 +28,7 @@ const hhmm = (m: number) => (m >= 1440 ? "24:00" : `${String(Math.floor(m / 60))
 
 export default async function AutomationsPage() {
   const ctx = await pageContext("template.view", "acknowledgment");
+  const ui = await studioForCompany(ctx);
   const { settings: s, sms, email, booking: bt, history } = await getAutomationSettings(ctx);
   const seqOn = hasFeature(ctx.package, "sequences");
   const [sequences, booking] = await Promise.all([seqOn ? listSequences(ctx) : Promise.resolve(null), getBookingSettings(ctx)]);
@@ -36,7 +38,7 @@ export default async function AutomationsPage() {
 
   return (
     <>
-      <PageHeader title="Automations" subtitle="The messages Bluewater sends for you, and when." />
+      <PageHeader title={ui.t("page.automations.title")} subtitle={ui.t("page.automations.subtitle")} />
 
       {s.automationPaused && (
         <div className="mb-6 flex items-start gap-3 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-800">
@@ -65,7 +67,7 @@ export default async function AutomationsPage() {
 
           <Card title="Follow-up sequences">
             {!sequences ? (
-              <div className="flex items-start gap-3 text-sm text-muted"><Repeat className="mt-0.5 size-5 text-brand-500" /><p>Multi-day follow-up by text and email is part of Bluewater Engage.</p></div>
+              <div className="flex items-start gap-3 text-sm text-muted"><Repeat className="mt-0.5 size-5 text-brand-500" /><p>{ui.upgrade("follow_up_booking")}</p></div>
             ) : (
               <>
                 <p className="-mt-2 mb-4 text-sm text-muted">Messages over the following days for leads who haven&apos;t replied. A sequence stops by itself when the person replies, books, opts out or the lead is closed.</p>

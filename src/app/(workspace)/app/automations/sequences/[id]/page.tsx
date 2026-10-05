@@ -7,6 +7,7 @@ import { pageContext } from "@/lib/authz/guard";
 import { roleCan } from "@/lib/authz/permissions";
 import { isSimulatedEnvironment } from "@/lib/env";
 import { getSequence } from "@/server/sequences/manage";
+import { copyForSequence } from "@/server/library/customer";
 import { setSequenceStateAction } from "../../sequence-actions";
 import { SequenceEditor, type EditorStep } from "./sequence-editor";
 
@@ -18,6 +19,7 @@ export default async function SequencePage({ params, searchParams }: { params: P
   const { created } = await searchParams;
   const data = await getSequence(ctx, id);
   if (!data) notFound();
+  const fromLibrary = await copyForSequence(ctx, id);
   const { sequence: s, steps, openEnrollments, onOlderVersion } = data;
   const canEdit = roleCan(ctx.role, "sequence.manage") && ctx.policy.login === "full";
   const simulated = isSimulatedEnvironment() || ctx.companyKind !== "customer";
@@ -32,6 +34,7 @@ export default async function SequencePage({ params, searchParams }: { params: P
         {s.status === "active" && s.autoEnroll && <Badge tone="blue">Starts automatically for new website leads</Badge>}
         <Badge>Version {s.currentVersion}</Badge>
       </div>
+      {fromLibrary && <p className="mb-6 rounded-2xl bg-brand-50 px-4 py-3 text-sm text-brand-700">Copied from the Sequence Library (“{fromLibrary.name}”, version {fromLibrary.version}). Turning it on requires the <Link href={`/app/library/copies/${fromLibrary.id}`} className="font-semibold underline">setup checklist</Link> to be complete.</p>}
       {created && <p role="status" className="mb-6 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">Sequence created with suggested wording. It&apos;s off until you turn it on — review the steps first.</p>}
 
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]">

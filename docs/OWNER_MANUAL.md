@@ -147,6 +147,67 @@ gives you presentation buttons (new lead, reply, booking, next follow‑up, swit
 Only after the client is **Archived**: company page → **Delete this company's data** (type the reason and the exact
 company name). What is deleted and kept is shown first and listed in `RETENTION.md`. Backups keep it up to 7 more days.
 
+## Platform Studio — changing the look and wording (Stage 8)
+Full guide: `STUDIO.md`. Short version:
+
+**Change wording, colors, menu or Overview layout**
+1. Admin → **Platform Studio**.
+2. Choose what to edit: **Platform default** (everyone), a **Package default** (e.g. only Bluewater Engage clients) or
+   **Customize one company** (pick it and press Open).
+3. Pick a tab: **Brand**, **Wording**, **Packages** (platform only), **Menu**, **Overview layout**.
+4. Change the fields and press **Save … draft**. Use the arrow buttons to move menu items or cards up/down.
+   **Reset to inherited** makes a field follow the level above again.
+5. Open **Preview & publish**: check the preview (switch Desktop/Phone, owner/employee, package; “sign-in page” link),
+   the list of changes and “reaches N workspaces”. Companies that set their own value are listed — they keep it.
+6. Type a short summary and press **Publish**. It's live on everyone's next page load.
+
+**Upload a logo or favicon**: Brand tab → *Upload an image* → choose the file → **Upload and use in draft** → preview →
+publish. Use PNG (transparent background for the dark-background logo), up to 512 KB; favicon: square PNG.
+SVG files are refused for security — export the logo as PNG.
+
+**Undo a change**: **History** tab → **Copy into draft** on the version you want → Preview & publish → Publish.
+
+**Troubleshooting**
+- “Someone else saved changes to this draft…” — another administrator saved first. Reload and redo your change.
+- “…too hard to read…” — pick a darker color (white text must stay readable).
+- “…plain text only” — remove `<`/`>` tags or code; links aren't allowed in Studio text.
+- A client says a menu item disappeared — it may be hidden in their company or package scope (Menu tab), or their
+  package/role doesn't include it. Hiding never blocks access; the page still works by its address if allowed.
+- The admin area looks broken after a publish — set `STUDIO_SAFE_MODE=true` in Vercel and redeploy (see `STUDIO.md`).
+
+## Sequence Library (Stage 8)
+Full guide: `LIBRARY.md`.
+
+**Publish templates (you)**
+1. Admin → **Sequence Library** → **Add starter templates** (first time), or **Import a template file**, or
+   **Create a new template**.
+2. Open a template, edit the draft (form, or “Advanced: edit as a file”), press **Check and save draft**.
+3. Read the preview, add a change note, **Publish**. Clients can now find it. **Mark as recommended** to put it first.
+4. To change a published template: **Start a draft from version N**, edit, publish. Clients with copies see
+   “Update available” and decide; nothing changes for them automatically.
+5. **Retire** stops new copies (existing ones keep working). **Emergency pause** is for harmful or wrong content: read
+   the list of affected businesses, give a reason, confirm. It pauses (doesn't stop) affected follow-ups.
+
+**Use a template (clients)**
+1. Menu → **Sequence Library** → search/filter → open a template → read every message and the rules.
+2. **Copy to my workspace** (owner). Nothing is sent and nobody is added.
+3. Customize: for a sequence press **Edit in the sequence editor** and replace every `[[highlighted]]` part; for an
+   instant reply edit the wording on the copy page.
+4. Tick the confirmations in **Check the setup** and press **Save confirmations**. Required items must show a check.
+5. **Turn on**. Tick “Also start it automatically for new eligible leads” only if new leads should start it by
+   themselves. To add an existing lead: open the lead → Start follow-up.
+
+**Troubleshooting**
+- “Finish the setup checklist first: …” — the list says exactly what's missing (often a `[[placeholder]]`, a
+  confirmation, a booking page, or a sender Bluewater still has to verify).
+- “… already starts automatically for new leads” — only one sequence can start automatically; turn the other one's
+  automatic start off first (Automations).
+- “Follow-up sequences are part of Bluewater Engage.” — the client's package doesn't include sequences.
+- Import refused — the message lists each problem (unknown field, phone number, link, missing “Reply STOP to opt out”…).
+  Nothing was saved; fix the file and import again.
+- A client's follow-ups are paused “by Bluewater” — an emergency pause was used. After review, lift the pause; the
+  client resumes each follow-up from the lead page.
+
 ## When something goes wrong
 Use the playbooks in `docs/playbooks/README.md` (keep a copy outside the app). Backups and restoring: `RECOVERY.md`.
-Capacity measurements: `CAPACITY.md`. Launch readiness: `LAUNCH_CHECKLIST.md`.
+Capacity measurements: `CAPACITY.md`. Launch readiness: `LAUNCH_CHECKLIST.md`. Appearance editor: `STUDIO.md`. Template library: `LIBRARY.md`.

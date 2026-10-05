@@ -1,6 +1,6 @@
 import Link from "next/link";
 import {
-  AlertTriangle, ArrowDown, ArrowUp, CalendarDays, CheckCircle2, Circle, DollarSign, Inbox, MailCheck, MailX, MessageSquareReply, MinusCircle, Repeat, UserX,
+  AlertTriangle, ArrowDown, ArrowUp, CalendarDays, CheckCircle2, Circle, DollarSign, Inbox, MailCheck, MailX, MessageSquareReply, MinusCircle, Repeat, Trophy, UserX,
 } from "lucide-react";
 import { Badge, Card, PageHeader, StatCard } from "@/components/ui";
 import { DailyChart } from "@/components/daily-chart";
@@ -17,6 +17,9 @@ import { formatInZone, timezoneLabel } from "@/lib/timezones";
 import { overviewMetrics } from "@/server/metrics";
 import { onboardingChecklist, type StepStatus } from "@/server/onboarding";
 import { STAGES } from "@/server/crm/leads";
+import { studioForCompany } from "@/server/studio/runtime";
+import type { CardId, MetricTile } from "@/server/studio/registry";
+import { DashboardGrid, DashboardTiles } from "@/components/dashboard-grid";
 
 export const metadata = { title: "Overview" };
 
@@ -45,200 +48,193 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
   const done = steps.filter((s) => s.status === "ready" || s.status === "na").length;
   const change = m.inquiries.changePct;
 
-  return (
-    <>
-      <PageHeader
-        title="Overview"
-        subtitle="Your leads, follow-up and advertising in one place."
-        actions={
-          <nav className="flex rounded-xl border border-line bg-white p-1" aria-label="Date range">
-            {PERIOD_OPTIONS.map((d) => (
-              <Link key={d} href={`/app?days=${d}`} aria-current={d === days ? "true" : undefined}
-                className={`rounded-lg px-3 py-1.5 text-sm font-medium ${d === days ? "bg-navy-900 text-white" : "text-muted hover:text-ink"}`}>Last {d} days</Link>
-            ))}
-          </nav>
-        }
-      />
-      {sp.welcome && <p className="mb-6 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">Welcome to {ctx.companyName}! You&apos;re all set up.</p>}
+  const ui = await studioForCompany(ctx);
+  const canIntegrations = roleCan(ctx.role, "integration.view");
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="card flex items-start gap-4 p-5">
-          <span className="grid size-12 shrink-0 place-items-center rounded-full bg-brand-50 text-brand-500"><Inbox className="size-6" /></span>
-          <div>
-            <p className="text-sm text-muted">New inquiries</p>
-            <p className="mt-1 text-3xl font-bold tracking-tight">{m.inquiries.current.toLocaleString("en-US")}</p>
-            <p className="mt-1 flex items-center gap-1 text-xs text-muted">
-              {change == null ? <>No earlier data to compare</> : (
-                <><span className={`inline-flex items-center font-semibold ${change >= 0 ? "text-emerald-700" : "text-amber-700"}`}>{change >= 0 ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />}{Math.abs(change)}%</span> vs previous {days} days</>
-              )}
-            </p>
-          </div>
+  /* Number tiles (Studio picks which; calculations are the existing ones in server/metrics.ts). */
+  const tiles: Record<MetricTile, React.ReactNode> = {
+    new_inquiries: (
+      <div className="card flex h-full items-start gap-4 p-5">
+        <span className="grid size-12 shrink-0 place-items-center rounded-full bg-brand-50 text-brand-500"><Inbox className="size-6" /></span>
+        <div>
+          <p className="text-sm text-muted">New inquiries</p>
+          <p className="mt-1 text-3xl font-bold tracking-tight">{m.inquiries.current.toLocaleString("en-US")}</p>
+          <p className="mt-1 flex items-center gap-1 text-xs text-muted">
+            {change == null ? <>No earlier data to compare</> : (
+              <><span className={`inline-flex items-center font-semibold ${change >= 0 ? "text-emerald-700" : "text-amber-700"}`}>{change >= 0 ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />}{Math.abs(change)}%</span> vs previous {days} days</>
+            )}
+          </p>
         </div>
-        <StatCard icon={MailCheck} label="Acknowledgments sent" value={m.messaging.acksSent.toLocaleString("en-US")} tone="green"
-          note={m.messaging.medianAckSeconds == null ? (m.messaging.acksSimulated ? "Simulated in this environment" : "Automatic replies to leads in this period") : `Typically ${duration(m.messaging.medianAckSeconds)} after the inquiry${m.messaging.acksSimulated ? " · simulated" : ""}`} />
-        <StatCard icon={MailX} label="Failed acknowledgments" value={(m.messaging.acksFailed + m.messaging.acksUncertain).toLocaleString("en-US")} tone="amber"
-          note={m.messaging.acksUncertain ? `${m.messaging.acksUncertain} unconfirmed, being checked` : "Couldn't be delivered"} />
-        <Link href="/app/conversations?filter=needs_reply" className="block"><StatCard icon={MessageSquareReply} label="Waiting for your reply" value={m.messaging.needsReply.toLocaleString("en-US")} tone="purple"
-          note={m.messaging.medianFirstHumanSeconds == null ? "Conversations where the lead wrote last" : `Team's first reply typically ${duration(m.messaging.medianFirstHumanSeconds)} after an inquiry`} /></Link>
       </div>
+    ),
+    acks_sent: <StatCard icon={MailCheck} label="Acknowledgments sent" value={m.messaging.acksSent.toLocaleString("en-US")} tone="green"
+      note={m.messaging.medianAckSeconds == null ? (m.messaging.acksSimulated ? "Simulated in this environment" : "Automatic replies to leads in this period") : `Typically ${duration(m.messaging.medianAckSeconds)} after the inquiry${m.messaging.acksSimulated ? " · simulated" : ""}`} />,
+    acks_failed: <StatCard icon={MailX} label="Failed acknowledgments" value={(m.messaging.acksFailed + m.messaging.acksUncertain).toLocaleString("en-US")} tone="amber"
+      note={m.messaging.acksUncertain ? `${m.messaging.acksUncertain} unconfirmed, being checked` : "Couldn't be delivered"} />,
+    needs_reply: <Link href="/app/conversations?filter=needs_reply" className="block h-full"><StatCard icon={MessageSquareReply} label="Waiting for your reply" value={m.messaging.needsReply.toLocaleString("en-US")} tone="purple"
+      note={m.messaging.medianFirstHumanSeconds == null ? "Conversations where the lead wrote last" : `Team's first reply typically ${duration(m.messaging.medianFirstHumanSeconds)} after an inquiry`} /></Link>,
+    unassigned_open: <StatCard icon={UserX} label="Open leads with no one assigned" value={m.unassignedOpen.toLocaleString("en-US")} tone="amber" note="Assign them on the Leads page" />,
+    won_count: <StatCard icon={Trophy} label={`Leads won · last ${days} days`} value={m.sales ? m.sales.wonCount.toLocaleString("en-US") : null} tone="green" note={m.sales ? "Marked Won by your team" : "Recorded sales aren't part of this plan"} />,
+    recorded_sales: <StatCard icon={DollarSign} label={`Recorded sales · last ${days} days`} value={m.sales ? money(m.sales.recordedCents) : null} tone="green"
+      note={!m.sales ? "Recorded sales aren't part of this plan" : m.sales.wonWithoutValue ? `${m.sales.wonWithoutValue} won without a value — total incomplete` : "Sale values your team entered"} />,
+  };
 
-      {(follow || upcoming) && (
-        <div className="mt-6 grid gap-6 lg:grid-cols-3">
-          {follow && (
-            <Card title="Active follow-ups" actions={<Repeat className="size-5 text-brand-500" />}>
-              <p className="text-3xl font-bold tracking-tight">{follow.active.toLocaleString("en-US")}</p>
-              <p className="mb-3 text-xs text-muted">people receiving automatic follow-up now{follow.paused ? ` · ${follow.paused} paused` : ""}</p>
-              {follow.next.length > 0 && (
-                <ul className="space-y-1.5 text-sm">
-                  {follow.next.map((f) => (
-                    <li key={f.id} className="flex items-center justify-between gap-2">
-                      <Link href={`/app/leads/${f.inquiryId}`} className="truncate hover:text-brand-600">{f.name || "Unnamed lead"}</Link>
-                      <span className="shrink-0 text-xs text-muted">{f.status === "paused" ? "paused" : f.nextRunAt ? `step ${f.nextStep + 1} · ${formatInZone(f.nextRunAt, ctx.timezone, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : ""}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Card>
-          )}
-          {stops && (
-            <Card title={`Follow-up results · last ${days} days`}>
-              <p className="mb-3 text-sm"><span className="font-semibold">{stops.sent.toLocaleString("en-US")}</span> follow-up messages sent · <span className="font-semibold">{stops.completed}</span> finished all steps</p>
-              {stops.stopped.length === 0 ? <p className="text-sm text-muted">No follow-ups stopped early in this period.</p> : (
-                <ul className="space-y-1.5 text-sm">
-                  {stops.stopped.map((r) => <li key={r.code ?? r.label} className="flex justify-between gap-2"><span>{r.label}</span><span className="font-semibold tabular-nums">{r.n}</span></li>)}
-                </ul>
-              )}
-              <p className="mt-3 text-xs text-muted">Stopping early is good news when it&apos;s because they replied or booked.</p>
-            </Card>
-          )}
-          {upcoming && (
-            <Card title="Upcoming appointments" actions={<Link href="/app/appointments" className="text-sm font-medium text-brand-600 hover:underline">All</Link>}>
-              <p className="text-3xl font-bold tracking-tight">{upcoming.total.toLocaleString("en-US")}</p>
-              <p className="mb-3 text-xs text-muted">in the next 7 days</p>
-              {upcoming.next.length === 0 ? <p className="flex items-center gap-2 text-sm text-muted"><CalendarDays className="size-4" /> Nothing booked yet.</p> : (
-                <ul className="space-y-2 text-sm">
-                  {upcoming.next.map((a) => (
-                    <li key={a.id} className="flex items-center justify-between gap-2">
-                      <Link href={`/app/leads/${a.inquiryId}`} className="min-w-0 truncate hover:text-brand-600">{a.name || "Unnamed lead"}</Link>
-                      <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted">{formatInZone(a.startsAt, ctx.timezone, { weekday: "short", hour: "numeric", minute: "2-digit" })}{a.source === "simulated" && <SourceBadge source="simulated" />}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Card>
-          )}
-        </div>
-      )}
-
-      <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <Card title="Lead activity" actions={<span className="text-xs text-muted">Inquiries per day</span>}>
-          {m.inquiries.current === 0 && m.recent.length === 0 ? (
-            <p className="py-10 text-center text-sm text-muted">No inquiries yet. They&apos;ll appear here as soon as your first lead arrives.</p>
-          ) : <DailyChart data={m.daily} label="Inquiries" />}
-        </Card>
-        <Card title="Lead sources" actions={roleCan(ctx.role, "integration.view") ? <Link href="/app/connected-accounts" className="text-sm font-medium text-brand-600 hover:underline">Manage</Link> : undefined}>
-          {m.bySource.length === 0 ? <p className="text-sm text-muted">No inquiries in this period.</p> : (
-            <ul className="space-y-3">
-              {m.bySource.map((s) => {
-                const pct = Math.round((s.count / m.inquiries.current) * 100);
-                return (
-                  <li key={`${s.source}-${s.label}`}>
-                    <div className="mb-1 flex justify-between text-sm"><span>{sourceName(s.source, s.label)}</span><span className="tabular-nums text-muted">{s.count} · {pct}%</span></div>
-                    <div className="h-2 rounded-full bg-canvas"><div className="h-2 rounded-full bg-brand-500" style={{ width: `${Math.max(pct, 2)}%` }} /></div>
-                  </li>
-                );
-              })}
+  /* Cards: each returns nothing when the package/role doesn't include it — the Studio can't add what isn't allowed. */
+  const cards: Record<CardId, React.ReactNode> = {
+    active_followups: follow && (
+      <Card title="Active follow-ups" actions={<Repeat className="size-5 text-brand-500" />}>
+        <p className="text-3xl font-bold tracking-tight">{follow.active.toLocaleString("en-US")}</p>
+        <p className="mb-3 text-xs text-muted">people receiving automatic follow-up now{follow.paused ? ` · ${follow.paused} paused` : ""}</p>
+        {follow.next.length > 0 && (
+          <ul className="space-y-1.5 text-sm">
+            {follow.next.map((f) => (
+              <li key={f.id} className="flex items-center justify-between gap-2">
+                <Link href={`/app/leads/${f.inquiryId}`} className="truncate hover:text-brand-600">{f.name || "Unnamed lead"}</Link>
+                <span className="shrink-0 text-xs text-muted">{f.status === "paused" ? "paused" : f.nextRunAt ? `step ${f.nextStep + 1} · ${formatInZone(f.nextRunAt, ctx.timezone, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : ""}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+    ),
+    followup_results: stops && (
+      <Card title={`Follow-up results · last ${days} days`}>
+        <p className="mb-3 text-sm"><span className="font-semibold">{stops.sent.toLocaleString("en-US")}</span> follow-up messages sent · <span className="font-semibold">{stops.completed}</span> finished all steps</p>
+        {stops.stopped.length === 0 ? <p className="text-sm text-muted">No follow-ups stopped early in this period.</p> : (
+          <ul className="space-y-1.5 text-sm">
+            {stops.stopped.map((r) => <li key={r.code ?? r.label} className="flex justify-between gap-2"><span>{r.label}</span><span className="font-semibold tabular-nums">{r.n}</span></li>)}
+          </ul>
+        )}
+        <p className="mt-3 text-xs text-muted">Stopping early is good news when it&apos;s because they replied or booked.</p>
+      </Card>
+    ),
+    upcoming_appointments: upcoming && (
+      <Card title="Upcoming appointments" actions={<Link href="/app/appointments" className="text-sm font-medium text-brand-600 hover:underline">All</Link>}>
+        <p className="text-3xl font-bold tracking-tight">{upcoming.total.toLocaleString("en-US")}</p>
+        <p className="mb-3 text-xs text-muted">in the next 7 days</p>
+        {upcoming.next.length === 0 ? <p className="flex items-center gap-2 text-sm text-muted"><CalendarDays className="size-4" /> Nothing booked yet.</p> : (
+          <ul className="space-y-2 text-sm">
+            {upcoming.next.map((a) => (
+              <li key={a.id} className="flex items-center justify-between gap-2">
+                <Link href={`/app/leads/${a.inquiryId}`} className="min-w-0 truncate hover:text-brand-600">{a.name || "Unnamed lead"}</Link>
+                <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted">{formatInZone(a.startsAt, ctx.timezone, { weekday: "short", hour: "numeric", minute: "2-digit" })}{a.source === "simulated" && <SourceBadge source="simulated" />}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+    ),
+    lead_activity: (
+      <Card title="Lead activity" actions={<span className="text-xs text-muted">Inquiries per day</span>}>
+        {m.inquiries.current === 0 && m.recent.length === 0 ? (
+          <p className="py-10 text-center text-sm text-muted">No inquiries yet. They&apos;ll appear here as soon as your first lead arrives.</p>
+        ) : <DailyChart data={m.daily} label="Inquiries" />}
+      </Card>
+    ),
+    lead_sources: (
+      <Card title="Lead sources" actions={canIntegrations ? <Link href="/app/connected-accounts" className="text-sm font-medium text-brand-600 hover:underline">Manage</Link> : undefined}>
+        {m.bySource.length === 0 ? <p className="text-sm text-muted">No inquiries in this period.</p> : (
+          <ul className="space-y-3">
+            {m.bySource.map((s) => {
+              const pct = Math.round((s.count / m.inquiries.current) * 100);
+              return (
+                <li key={`${s.source}-${s.label}`}>
+                  <div className="mb-1 flex justify-between text-sm"><span>{sourceName(s.source, s.label)}</span><span className="tabular-nums text-muted">{s.count} · {pct}%</span></div>
+                  <div className="h-2 rounded-full bg-canvas"><div className="h-2 rounded-full bg-brand-500" style={{ width: `${Math.max(pct, 2)}%` }} /></div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        <div className="mt-5 border-t border-line pt-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Connected forms</p>
+          {m.sources.length === 0 ? <p className="text-sm text-muted">None connected yet.</p> : (
+            <ul className="space-y-1.5 text-sm">
+              {m.sources.map((s) => (
+                <li key={s.id} className="flex items-center justify-between gap-2">
+                  <span className="truncate">{s.name}</span>
+                  {!s.active ? <Badge>Off</Badge> : s.lastReceivedAt ? <span className="text-xs text-muted">Last lead {formatInZone(s.lastReceivedAt, ctx.timezone, { dateStyle: "medium" })}</span> : <Badge tone="amber">Waiting for first lead</Badge>}
+                </li>
+              ))}
             </ul>
           )}
-          <div className="mt-5 border-t border-line pt-4">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Connected forms</p>
-            {m.sources.length === 0 ? <p className="text-sm text-muted">None connected yet.</p> : (
-              <ul className="space-y-1.5 text-sm">
-                {m.sources.map((s) => (
-                  <li key={s.id} className="flex items-center justify-between gap-2">
-                    <span className="truncate">{s.name}</span>
-                    {!s.active ? <Badge>Off</Badge> : s.lastReceivedAt ? <span className="text-xs text-muted">Last lead {formatInZone(s.lastReceivedAt, ctx.timezone, { dateStyle: "medium" })}</span> : <Badge tone="amber">Waiting for first lead</Badge>}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </Card>
-      </div>
-
-      <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <Card title="Recent leads" actions={<Link href="/app/leads" className="text-sm font-medium text-brand-600 hover:underline">View all leads →</Link>}>
-          {m.recent.length === 0 ? <p className="text-sm text-muted">No leads yet.</p> : (
-            <div className="-mx-2 overflow-x-auto">
-              <table className="w-full min-w-[520px] text-left text-sm">
-                <thead className="text-muted"><tr><th className="px-2 py-2 font-medium">Name</th><th className="px-2 py-2 font-medium">Source</th><th className="px-2 py-2 font-medium">Stage</th><th className="px-2 py-2 font-medium">Assigned to</th><th className="px-2 py-2 font-medium">Received</th></tr></thead>
-                <tbody className="divide-y divide-line">
-                  {m.recent.map((r) => (
-                    <tr key={r.id}>
-                      <td className="px-2 py-2.5"><Link href={`/app/leads/${r.id}`} className="font-medium hover:text-brand-600">{r.name}</Link></td>
-                      <td className="px-2 py-2.5 text-muted">{sourceName(r.source, r.sourceLabel)}</td>
-                      <td className="px-2 py-2.5"><StageBadge stage={r.stage} /></td>
-                      <td className="px-2 py-2.5 text-muted">{r.assigned || "Unassigned"}</td>
-                      <td className="px-2 py-2.5 text-muted">{formatInZone(r.submittedAt, ctx.timezone, { dateStyle: "medium" })}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Card>
-        <div className="space-y-6">
-          <Card title="Team alerts">
-            <p className="text-sm text-muted">{m.messaging.lastAlertAt ? `Last alert sent ${formatInZone(m.messaging.lastAlertAt, ctx.timezone)}.` : "No alerts sent yet. Your team is emailed when a lead arrives or replies."}</p>
-            {m.messaging.failedAlerts > 0 && <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">{m.messaging.failedAlerts} alert email(s) failed in this period. Bluewater retries automatically.</p>}
-          </Card>
-          {m.unassignedOpen > 0 && (
-            <Link href="/app/leads?assigned=unassigned" className="card flex items-center gap-4 p-5 hover:border-brand-200">
-              <span className="grid size-12 place-items-center rounded-full bg-amber-50 text-amber-600"><UserX className="size-6" /></span>
-              <span><span className="block text-2xl font-bold">{m.unassignedOpen}</span><span className="text-sm text-muted">open {m.unassignedOpen === 1 ? "lead has" : "leads have"} no one assigned</span></span>
-            </Link>
-          )}
-          {m.pipeline && (
-            <Card title="Pipeline" actions={<Link href="/app/leads/pipeline" className="text-sm font-medium text-brand-600 hover:underline">Open board</Link>}>
-              <p className="-mt-2 mb-3 text-xs text-muted">Current stage of inquiries received in the last {days} days</p>
-              <ul className="space-y-2">
-                {STAGES.map((s) => (
-                  <li key={s} className="flex items-center justify-between text-sm"><StageBadge stage={s} /><span className="font-semibold tabular-nums">{m.pipeline![s]}</span></li>
-                ))}
-              </ul>
-            </Card>
-          )}
-          {ads && (
-            <Card title={`Ad spend · last ${days} days`} actions={<Link href={`/app/reports?days=${days}`} className="text-sm font-medium text-brand-600 hover:underline">Reports</Link>}>
-              {!ads.connected ? <p className="text-sm text-muted">Connect Meta or Google Ads under Connected Accounts to see spend here.</p>
-                : ads.totals.length === 0 ? <p className="text-sm text-muted">No ad spend recorded in this period.</p> : (
-                <ul className="space-y-2">
-                  {ads.totals.map((t) => (
-                    <li key={t.currency}>
-                      <p className="text-2xl font-bold">{new Intl.NumberFormat("en-US", { style: "currency", currency: t.currency, maximumFractionDigits: 0 }).format(t.spendMicros / 1e6)}</p>
-                      <p className="text-xs text-muted">{t.leads} credited {t.leads === 1 ? "lead" : "leads"}{t.leads ? ` · ${new Intl.NumberFormat("en-US", { style: "currency", currency: t.currency }).format(t.spendMicros / 1e6 / t.leads)} per lead` : ""}</p>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {ads.simulated && <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">Sample numbers from simulated ad accounts.</p>}
-              {ads.connected && ads.stale && <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">Not updated recently{ads.lastSyncOkAt ? ` (last ${formatInZone(ads.lastSyncOkAt, ctx.timezone)})` : ""} — may be out of date.</p>}
-            </Card>
-          )}
-          {m.sales && (
-            <Card title="Recorded sales">
-              <div className="flex items-center gap-3">
-                <span className="grid size-11 place-items-center rounded-full bg-emerald-50 text-emerald-600"><DollarSign className="size-5" /></span>
-                <div><p className="text-2xl font-bold">{money(m.sales.recordedCents)}</p><p className="text-xs text-muted">{m.sales.wonCount} won in the last {days} days</p></div>
-              </div>
-              {m.sales.wonWithoutValue > 0 && <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">{m.sales.wonWithoutValue} won {m.sales.wonWithoutValue === 1 ? "lead has" : "leads have"} no sale value recorded, so the total is incomplete.</p>}
-              <p className="mt-3 text-xs text-muted">Sales your team recorded in Bluewater. Which campaigns they came from is under Reports.</p>
-            </Card>
-          )}
         </div>
-      </div>
-
-      <Card className="mt-6" title="Getting started" actions={<Badge tone="blue">{`${done} of ${steps.length} complete`}</Badge>}>
+      </Card>
+    ),
+    recent_leads: (
+      <Card title="Recent leads" actions={<Link href="/app/leads" className="text-sm font-medium text-brand-600 hover:underline">View all leads →</Link>}>
+        {m.recent.length === 0 ? <p className="text-sm text-muted">No leads yet.</p> : (
+          <div className="-mx-2 overflow-x-auto">
+            <table className="w-full min-w-[520px] text-left text-sm">
+              <thead className="text-muted"><tr><th className="px-2 py-2 font-medium">Name</th><th className="px-2 py-2 font-medium">Source</th><th className="px-2 py-2 font-medium">Stage</th><th className="px-2 py-2 font-medium">Assigned to</th><th className="px-2 py-2 font-medium">Received</th></tr></thead>
+              <tbody className="divide-y divide-line">
+                {m.recent.map((r) => (
+                  <tr key={r.id}>
+                    <td className="px-2 py-2.5"><Link href={`/app/leads/${r.id}`} className="font-medium hover:text-brand-600">{r.name}</Link></td>
+                    <td className="px-2 py-2.5 text-muted">{sourceName(r.source, r.sourceLabel)}</td>
+                    <td className="px-2 py-2.5"><StageBadge stage={r.stage} /></td>
+                    <td className="px-2 py-2.5 text-muted">{r.assigned || "Unassigned"}</td>
+                    <td className="px-2 py-2.5 text-muted">{formatInZone(r.submittedAt, ctx.timezone, { dateStyle: "medium" })}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+    ),
+    team_alerts: (
+      <Card title="Team alerts">
+        <p className="text-sm text-muted">{m.messaging.lastAlertAt ? `Last alert sent ${formatInZone(m.messaging.lastAlertAt, ctx.timezone)}.` : "No alerts sent yet. Your team is emailed when a lead arrives or replies."}</p>
+        {m.messaging.failedAlerts > 0 && <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">{m.messaging.failedAlerts} alert email(s) failed in this period. Bluewater retries automatically.</p>}
+      </Card>
+    ),
+    unassigned: m.unassignedOpen > 0 && (
+      <Link href="/app/leads?assigned=unassigned" className="card flex h-full items-center gap-4 p-5 hover:border-brand-200">
+        <span className="grid size-12 place-items-center rounded-full bg-amber-50 text-amber-600"><UserX className="size-6" /></span>
+        <span><span className="block text-2xl font-bold">{m.unassignedOpen}</span><span className="text-sm text-muted">open {m.unassignedOpen === 1 ? "lead has" : "leads have"} no one assigned</span></span>
+      </Link>
+    ),
+    pipeline: m.pipeline && (
+      <Card title="Pipeline" actions={<Link href="/app/leads/pipeline" className="text-sm font-medium text-brand-600 hover:underline">Open board</Link>}>
+        <p className="-mt-2 mb-3 text-xs text-muted">Current stage of inquiries received in the last {days} days</p>
+        <ul className="space-y-2">
+          {STAGES.map((s) => (
+            <li key={s} className="flex items-center justify-between text-sm"><StageBadge stage={s} /><span className="font-semibold tabular-nums">{m.pipeline![s]}</span></li>
+          ))}
+        </ul>
+      </Card>
+    ),
+    ad_spend: ads && (
+      <Card title={`Ad spend · last ${days} days`} actions={<Link href={`/app/reports?days=${days}`} className="text-sm font-medium text-brand-600 hover:underline">Reports</Link>}>
+        {!ads.connected ? <p className="text-sm text-muted">Connect Meta or Google Ads under Connected Accounts to see spend here.</p>
+          : ads.totals.length === 0 ? <p className="text-sm text-muted">No ad spend recorded in this period.</p> : (
+          <ul className="space-y-2">
+            {ads.totals.map((t) => (
+              <li key={t.currency}>
+                <p className="text-2xl font-bold">{new Intl.NumberFormat("en-US", { style: "currency", currency: t.currency, maximumFractionDigits: 0 }).format(t.spendMicros / 1e6)}</p>
+                <p className="text-xs text-muted">{t.leads} credited {t.leads === 1 ? "lead" : "leads"}{t.leads ? ` · ${new Intl.NumberFormat("en-US", { style: "currency", currency: t.currency }).format(t.spendMicros / 1e6 / t.leads)} per lead` : ""}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+        {ads.simulated && <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">Sample numbers from simulated ad accounts.</p>}
+        {ads.connected && ads.stale && <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">Not updated recently{ads.lastSyncOkAt ? ` (last ${formatInZone(ads.lastSyncOkAt, ctx.timezone)})` : ""} — may be out of date.</p>}
+      </Card>
+    ),
+    recorded_sales: m.sales && (
+      <Card title="Recorded sales">
+        <div className="flex items-center gap-3">
+          <span className="grid size-11 place-items-center rounded-full bg-emerald-50 text-emerald-600"><DollarSign className="size-5" /></span>
+          <div><p className="text-2xl font-bold">{money(m.sales.recordedCents)}</p><p className="text-xs text-muted">{m.sales.wonCount} won in the last {days} days</p></div>
+        </div>
+        {m.sales.wonWithoutValue > 0 && <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">{m.sales.wonWithoutValue} won {m.sales.wonWithoutValue === 1 ? "lead has" : "leads have"} no sale value recorded, so the total is incomplete.</p>}
+        <p className="mt-3 text-xs text-muted">Sales your team recorded in Bluewater. Which campaigns they came from is under Reports.</p>
+      </Card>
+    ),
+    getting_started: (
+      <Card title={ui.t("onboarding.title")} actions={<Badge tone="blue">{`${done} of ${steps.length} complete`}</Badge>}>
+        {ui.t("onboarding.intro") && <p className="mb-4 whitespace-pre-line text-sm text-muted">{ui.t("onboarding.intro")}</p>}
         <div className="mb-4 h-2 overflow-hidden rounded-full bg-canvas" role="progressbar" aria-valuenow={done} aria-valuemax={steps.length} aria-label="Setup progress">
           <div className="h-full rounded-full bg-brand-500" style={{ width: `${(done / steps.length) * 100}%` }} />
         </div>
@@ -259,10 +255,31 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
           })}
         </ul>
       </Card>
+    ),
+  };
+
+  return (
+    <>
+      <PageHeader
+        title={ui.t("page.overview.title")}
+        subtitle={ui.t("page.overview.subtitle")}
+        actions={
+          <nav className="flex rounded-xl border border-line bg-white p-1" aria-label="Date range">
+            {PERIOD_OPTIONS.map((d) => (
+              <Link key={d} href={`/app?days=${d}`} aria-current={d === days ? "true" : undefined}
+                className={`rounded-lg px-3 py-1.5 text-sm font-medium ${d === days ? "bg-navy-900 text-white" : "text-muted hover:text-ink"}`}>Last {d} days</Link>
+            ))}
+          </nav>
+        }
+      />
+      {sp.welcome && <p className="mb-6 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">Welcome to {ctx.companyName}! You&apos;re all set up.</p>}
+
+      <DashboardTiles>{ui.tiles.map((id) => <div key={id}>{tiles[id]}</div>)}</DashboardTiles>
+      <DashboardGrid items={ui.cards.filter((c) => c.visible && cards[c.id]).map((c) => ({ id: c.id, size: c.size, node: cards[c.id] }))} />
 
       <p className="mt-6 text-xs text-muted">
         Figures calculated {formatInZone(m.computedAt, ctx.timezone)} from your records · days are counted in {timezoneLabel(ctx.timezone)} time · see “How numbers are calculated” in Help.
-        {!hasFeature(ctx.package, "ad_reporting") && " Advertising spend is part of Bluewater Insight."}
+        {!hasFeature(ctx.package, "ad_reporting") && ` ${ui.upgrade("performance_reporting")}`}
       </p>
     </>
   );

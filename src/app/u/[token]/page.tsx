@@ -1,4 +1,5 @@
 import { Wordmark } from "@/components/brand";
+import { studioPlatform } from "@/server/studio/runtime";
 import { confirmUnsubscribe, describeUnsubscribe } from "@/server/messaging/unsubscribe";
 
 export const metadata = { title: "Unsubscribe", robots: { index: false } };
@@ -13,6 +14,7 @@ async function unsubscribe(fd: FormData) {
 
 /** Public page. A button (not the link itself) confirms, so email security scanners can't unsubscribe people. */
 export default async function UnsubscribePage({ params, searchParams }: { params: Promise<{ token: string }>; searchParams: Promise<{ done?: string }> }) {
+  const brand = (await studioPlatform()).brand;
   const { token } = await params;
   const { done } = await searchParams;
   const info = await describeUnsubscribe(token);
@@ -33,7 +35,7 @@ export default async function UnsubscribePage({ params, searchParams }: { params
         )}
       </div>
       <p className="mt-6 text-xs text-muted">Sent on behalf of the business using</p>
-      <div className="mt-1 scale-75"><Wordmark size="sm" /></div>
+      <div className="mt-1 scale-75"><Wordmark size="sm" brand={brand} /></div>
     </main>
   );
 }

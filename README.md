@@ -4,7 +4,7 @@ A web platform that helps client businesses respond to every advertising lead, f
 see what their advertising produces. Each client company gets its own secure workspace; Bluewater
 administrators manage all companies from a separate area.
 
-> **Status:** Stages 1–5 and 7 complete (Stage 6, external CRM sync, waits for your choice of CRM) — accounts, security, company isolation, permissions, administrator
+> **Status:** Stages 1–5, 7 and 8 complete (Stage 6, external CRM sync, waits for your choice of CRM) — accounts, security, company isolation, permissions, administrator
 > company management, built-in CRM, website form capture, CSV import/export, a dashboard from real data,
 > **messaging** (automatic acknowledgments, two-way inbox, opt-outs, team alerts, background jobs) and
 > **Bluewater Engage**: multi-day follow-up sequences, Cal.com booking, appointments, confirmations and reminders.
@@ -43,6 +43,8 @@ administrators manage all companies from a separate area.
 | [docs/SUPPORT.md](docs/SUPPORT.md) | Support requests, hours, service notices |
 | [docs/RETENTION.md](docs/RETENTION.md) | What is kept, for how long, and how deletion works |
 | [docs/playbooks/README.md](docs/playbooks/README.md) | Incident playbooks |
+| [docs/STUDIO.md](docs/STUDIO.md) | Platform Studio: editing the look, wording, menu and Overview layout |
+| [docs/LIBRARY.md](docs/LIBRARY.md) | Sequence Library: reusable instant replies and follow-ups |
 | [CLAUDE.md](CLAUDE.md) | Rules for any developer (human or AI) working on the code |
 
 ## Try it on a computer (local development)

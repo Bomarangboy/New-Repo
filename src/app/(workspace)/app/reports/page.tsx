@@ -8,6 +8,7 @@ import { roleCan } from "@/lib/authz/permissions";
 import { PERIOD_OPTIONS, parsePeriod } from "@/lib/periods";
 import { formatInZone, timezoneLabel } from "@/lib/timezones";
 import { adReport, STALE_AFTER_HOURS } from "@/server/ads/reports";
+import { studioForCompany } from "@/server/studio/runtime";
 
 export const metadata = { title: "Reports" };
 
@@ -17,6 +18,7 @@ const PLATFORM: Record<string, string> = { meta: "Meta", google: "Google Ads" };
 
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<{ days?: string }> }) {
   const ctx = await pageContext("report.view", "ad_reporting");
+  const ui = await studioForCompany(ctx);
   const days = parsePeriod((await searchParams).days);
   const r = await adReport(ctx, days);
   const tz = ctx.timezone;
@@ -25,7 +27,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
 
   return (
     <>
-      <PageHeader title="Reports" subtitle="What your advertising cost, and what it produced in Bluewater."
+      <PageHeader title={ui.t("page.reports.title")} subtitle={ui.t("page.reports.subtitle")}
         actions={
           <nav className="flex rounded-xl border border-line bg-white p-1" aria-label="Date range">
             {PERIOD_OPTIONS.map((d) => (

@@ -15,6 +15,7 @@ not a provider's live service unless stated.
 | 4 | Follow‑up sequences, booking connector (Cal.com, D‑10), appointments, confirmations & reminders | **Done** (simulated; live Cal.com check pending) |
 | 5 | Meta & Google connectors (lead forms + reporting), reporting definitions | **Done** (simulated; live use **blocked** by platform approvals) |
 | 6 | First external CRM connector (D‑11) | **Needs your input**: which CRM do pilot clients use? |
+| 8 | Platform Studio (appearance/content/layout editor) and Sequence Library | **Done** (tested; not deployed) |
 | 7 | Billing/usage tooling, Health & Recovery Center, playbooks, backups & restore test, load test, scheduled summaries, support, retention/deletion, demo workspaces, deployment readiness | **Done** (local measurements; staging drills at launch) |
 
 The sales demo grows with each stage (foundation is in Stage 1–2).
@@ -271,6 +272,37 @@ refusal to purge non‑archived companies, RLS hiding internal notes, RLS blocki
 recipient‑count check, text‑limit fallback, late‑step pause, demo controls limited to demo workspaces; the restore drill
 failed as expected on a copy with RLS removed from one table. (Removing the alert “refresh” branch did not fail a test
 because the database's one‑open‑alert‑per‑key rule still prevents duplicates — the safeguard is the index.)
+
+## Stage 8 checklist — Platform Studio and Sequence Library
+
+### Implemented and verified
+- [x] Schema + RLS (`drizzle/0014`, `0015`): Studio drafts/published/versions/images; library templates, versions,
+      drafts, categories, evidence, company copies; restricted deletion now covers copies and company Studio overrides.
+- [x] Studio: settings registry with validation (plain text, contrast, essential menu items, package-aware landing),
+      platform → package → company inheritance with sources and Reset, drafts with conflict protection, preview by role,
+      package, company, desktop/phone (sample data only), publish with change list and scope, versions, restore into
+      draft, audit, safe mode + reset script, validated image uploads, Overview tiles/cards layout, menu order/labels,
+      landing page by package. Applied to the workspace, admin area, sign-in pages and favicon.
+- [x] Library: import format + validation + example, starter templates, admin create/edit/preview/version/publish/
+      recommend/retire/emergency pause, adoption, evidence with thresholds; client search/filters, preview of every
+      message/rule/requirement, private copies, setup checklist, activation vs automatic enrollment, update diffs with
+      merge/replace/keep, archive; package rules on the server; demo-safe.
+- [x] Tests: 22 new integration tests (studio 10, library 12), browser tests (Stage 8: 4), phone-width layout check.
+
+### Implemented, awaiting live verification
+- [ ] Deploy (migrations 0014/0015 run on staging first), then publish the starter library on production.
+- [ ] Evidence: needs real customer use before anything can be shown to clients.
+
+## Verification (Stage 8 run, 2026‑10‑05)
+275 unit + integration tests and 43 browser tests (Stages 1–5, 7, 8) passed; typecheck, lint and build clean.
+Mutation checks (each safeguard broken on purpose → a test failed): essential menu items, plain-text-only wording,
+color contrast, draft conflict protection, role filtering of the menu, company overrides private (RLS), library drafts
+hidden from clients (RLS), checklist enforced by the normal on/off switch, emergency-pause scope confirmation, no phone
+numbers in shared templates. Two mutations survived because a second independent check still blocked the same thing
+(SVG uploads are also refused by the script/markup check; sequences for Connect are also refused by the template's
+required package).
+Found and fixed during browser testing: a form field named `reset` broke React's form handling after saving
+(renamed), and two success messages vanished on refresh (now persistent).
 
 ## What's next
 - **Launch path:** LAUNCH_CHECKLIST.md — deployment accounts (your approval for each purchase), staging drills, provider

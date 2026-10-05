@@ -52,7 +52,7 @@ export function checkSteps(steps: StepInput[]): string[] {
   return problems;
 }
 
-function normalizeSteps(steps: StepInput[]) {
+export function normalizeSteps(steps: StepInput[]) {
   return steps.map((s, position) => ({
     position, delayMinutes: s.delayMinutes, channel: s.channel,
     smsBody: s.channel === "email" ? null : (s.smsBody ?? "").replace(/\r\n?/g, "\n").trim(),
@@ -151,6 +151,12 @@ export async function setSequenceState(ctx: CompanyContext, id: string, input: {
     const [s] = await tx.select().from(sequences).where(eq(sequences.id, id)).for("update");
     if (!s) throw new UserError("Sequence not found.");
     const autoEnroll = input.on && input.autoEnroll;
+    if (input.on && s.status !== "active") {
+      // Copies from the Sequence Library can't be turned on until their setup checklist is complete.
+      const { libraryActivationGate } = await import("@/server/library/readiness");
+      const blocked = await libraryActivationGate(tx, ctx.companyId, id);
+      if (blocked) throw new UserError(blocked);
+    }
     if (autoEnroll) {
       const [other] = await tx.select({ name: sequences.name }).from(sequences)
         .where(and(eq(sequences.autoEnroll, true), eq(sequences.status, "active"), sql`${sequences.id} <> ${id}`));

@@ -14,6 +14,8 @@ import { closeDb } from "../src/lib/db/client";
 import { companies, lifecycleHistory, memberships, packageHistory, users } from "../src/lib/db/schema";
 import { localCreateUser } from "../src/lib/auth/local-core";
 import { generateDemoDataset } from "../src/server/demo/dataset";
+import { listTemplatesAdmin, loadStarterLibrary, publishTemplate } from "../src/server/library/admin";
+import { getTemplateAdmin } from "../src/server/library/admin";
 
 export const DEV_PASSWORD = "bluewater-dev-password";
 
@@ -30,11 +32,21 @@ async function main() {
   if (!["development", "test"].includes(process.env.APP_ENV ?? "") || process.env.AUTH_PROVIDER !== "local") {
     throw new Error("Refusing to seed: this script only runs with APP_ENV=development or test and AUTH_PROVIDER=local.");
   }
-  for (const [email, name] of [["admin@bluewater.test", "Bluewater Admin"], ["ops@bluewater.test", "Bluewater Ops (second admin)"], ["support@bluewater.test", "Bluewater Support (third admin)"]] as const) {
+  for (const [email, name] of [["admin@bluewater.test", "Bluewater Admin"], ["ops@bluewater.test", "Bluewater Ops (second admin)"], ["support@bluewater.test", "Bluewater Support (third admin)"], ["design@bluewater.test", "Bluewater Design (fourth admin)"]] as const) {
     const auth = await ensureIdentity(email);
     await withSystemDb("dev seed", async (tx) => {
       await tx.insert(users).values({ authUserId: auth, email, fullName: name, isPlatformAdmin: true }).onConflictDoNothing();
     });
+  }
+
+  // Sequence Library: Bluewater's starter templates, published (they are labeled "unverified" — no evidence yet).
+  const [admin] = await withSystemDb("dev seed", (tx) => tx.select().from(users).where(sql`${users.email} = 'admin@bluewater.test'`));
+  const adminCtx = { userId: admin!.id, isPlatformAdmin: true as const, mfaVerified: true };
+  if (await loadStarterLibrary(adminCtx)) {
+    for (const t of await listTemplatesAdmin(adminCtx)) {
+      const d = await getTemplateAdmin(adminCtx, t.id);
+      if (d?.draft) await publishTemplate(adminCtx, t.id, "Starter version", d.draft.revision);
+    }
   }
 
   for (const c of COMPANIES) {

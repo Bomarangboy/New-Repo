@@ -23,6 +23,7 @@ part of the owner's legal review (D‑18). Changing a period is a decision to re
 | Website‑form submissions (raw) | Kept | Kept | **Deleted** |
 | Background jobs and notifications | Kept | Kept | **Deleted** |
 | Support requests (tickets) | Kept | Kept | **Deleted** |
+| Sequence Library copies and the company's own Studio look | Kept | Kept | **Deleted** (library originals are Bluewater's and stay) |
 | Team access (memberships, invitations) | Kept | Read‑only during export window | **Deleted**; sign‑in accounts that belong to no other company are **disabled** |
 | Invoices and billing terms | Kept | Kept | **Kept** (business and tax records) |
 | Activity log (who changed what) | Kept, can't be edited | Kept | **Kept** (security record; details never contain secrets) |

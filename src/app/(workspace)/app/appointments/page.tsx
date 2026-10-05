@@ -9,6 +9,7 @@ import { formatInZone, timezoneLabel } from "@/lib/timezones";
 import { listAppointments, simulationAllowed } from "@/server/booking/appointments";
 import { getBookingSettings } from "@/server/booking/settings";
 import { appointmentOutcomeAction, simulateChangeAction } from "./actions";
+import { studioForCompany } from "@/server/studio/runtime";
 
 export const metadata = { title: "Appointments" };
 
@@ -59,6 +60,7 @@ function AppointmentRow({ r, tz, canManage, sim, past }: { r: Row; tz: string; c
 
 export default async function AppointmentsPage() {
   const ctx = await pageContext("appointment.view", "appointments");
+  const ui = await studioForCompany(ctx);
   const [upcoming, past, booking] = await Promise.all([listAppointments(ctx, "upcoming"), listAppointments(ctx, "past", 50), getBookingSettings(ctx)]);
   const canManage = roleCan(ctx.role, "appointment.manage") && ctx.policy.login === "full";
   const sim = simulationAllowed(ctx);
@@ -66,7 +68,7 @@ export default async function AppointmentsPage() {
 
   return (
     <>
-      <PageHeader title="Appointments" subtitle={`Bookings from Cal.com and appointments your team entered. Times in ${timezoneLabel(tz)} time.`} />
+      <PageHeader title={ui.t("page.appointments.title")} subtitle={`Bookings from Cal.com and appointments your team entered. Times in ${timezoneLabel(tz)} time.`} />
       {booking && booking.status !== "connected" && (
         <p className="mb-6 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
           Cal.com isn&apos;t connected yet, so online bookings won&apos;t appear here automatically.{" "}
@@ -76,7 +78,7 @@ export default async function AppointmentsPage() {
       )}
       <Card title={`Upcoming (${upcoming.length})`} className="mb-6">
         {upcoming.length === 0 ? (
-          <EmptyState icon={CalendarDays} title="No upcoming appointments">Add one from a lead&apos;s page, or share your booking link.</EmptyState>
+          <EmptyState icon={CalendarDays} title={ui.t("empty.appointments.title")}>{ui.t("empty.appointments.body")}</EmptyState>
         ) : <ul className="-my-4 divide-y divide-line">{upcoming.map((r) => <AppointmentRow key={r.a.id} r={r} tz={tz} canManage={canManage} sim={sim} past={false} />)}</ul>}
       </Card>
       <Card title="Past and cancelled">

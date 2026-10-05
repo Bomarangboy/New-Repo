@@ -1,0 +1,39 @@
+{
+  "format": "bluewater.library/v1",
+  "kind": "sequence",
+  "name": "Home services: estimate follow-up (3 steps)",
+  "description": "Three gentle follow-ups over a week for home-service leads who haven't booked an estimate yet: a next-day nudge, a reminder with your offer, and a last check-in.",
+  "industry": "Home services",
+  "objective": "Book an estimate",
+  "category": "Follow-up",
+  "requiredPackage": "follow_up_booking",
+  "requiredIntegrations": [
+    "booking"
+  ],
+  "entry": "new_website_leads",
+  "stopOnManualMessage": true,
+  "handoffTask": true,
+  "steps": [
+    {
+      "delayMinutes": 1440,
+      "channel": "sms_or_email",
+      "smsBody": "Hi {{first_name|there}}, it's {{company_name}} following up on your {{service|request}}. Pick a time for your estimate here: {{booking_link|just reply and we'll set one up}}. Reply STOP to opt out.",
+      "emailSubject": "Your estimate with {{company_name}}",
+      "emailBody": "Hi {{first_name|there}},\n\nFollowing up on your request about {{service|your project}}. You can pick a time for your estimate here: {{booking_link|reply to this email and we'll find a time}}\n\n{{company_name}}"
+    },
+    {
+      "delayMinutes": 2880,
+      "channel": "sms_or_email",
+      "smsBody": "Hi {{first_name|there}}, {{company_name}} here. [[your current offer, e.g. Free estimates this month]]. Want to grab a time? {{booking_link|Reply here.}} Reply STOP to opt out.",
+      "emailSubject": "Still thinking about {{service|your project}}?",
+      "emailBody": "Hi {{first_name|there}},\n\n[[your current offer, e.g. Free estimates this month]]. If you'd still like help with {{service|your project}}, book a time that suits you: {{booking_link|just reply to this email}}\n\n{{company_name}}"
+    },
+    {
+      "delayMinutes": 5760,
+      "channel": "sms_or_email",
+      "smsBody": "Hi {{first_name|there}}, last note from {{company_name}} about your {{service|request}}. If you still need help, just reply and we'll take it from there. Reply STOP to opt out.",
+      "emailSubject": "Last note from {{company_name}}",
+      "emailBody": "Hi {{first_name|there}},\n\nThis is our last follow-up about {{service|your project}}. If you'd still like help, reply to this email and we'll take it from there.\n\n{{company_name}}"
+    }
+  ]
+}

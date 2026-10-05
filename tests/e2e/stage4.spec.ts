@@ -132,7 +132,7 @@ test.describe.serial("Stage 4: follow-up and booking", () => {
     await page.goto("/app/appointments");
     await expect(page).toHaveURL(/\/restricted\?reason=not_entitled/);
     await page.goto("/app/automations");
-    await expect(page.getByText("Multi-day follow-up by text and email is part of Bluewater Engage.")).toBeVisible();
+    await expect(page.getByText("Multi-day follow-up, booking and appointments are part of Bluewater Engage. Contact Bluewater to upgrade.").first()).toBeVisible();
     await page.goto("/app/automations/sequences/00000000-0000-0000-0000-000000000000");
     await expect(page).toHaveURL(/\/restricted\?reason=not_entitled/);
   });

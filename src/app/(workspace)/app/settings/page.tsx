@@ -4,11 +4,12 @@ import { ActionForm, Field, SubmitButton } from "@/components/forms";
 import { Badge, Card, PageHeader } from "@/components/ui";
 import { pageContext } from "@/lib/authz/guard";
 import { roleCan } from "@/lib/authz/permissions";
-import { FEATURES, PACKAGE_LABELS, hasFeature, type Feature } from "@/lib/authz/entitlements";
+import { FEATURES, hasFeature, type Feature } from "@/lib/authz/entitlements";
 import { US_TIMEZONES } from "@/lib/timezones";
 import { getCompanySummary } from "@/server/team";
 import { chooseCrmModeAction, updateSettingsAction, weeklySummaryAction } from "../actions";
 import { weeklySummaryEnabled } from "@/server/reports/weekly-summary";
+import { studioForCompany } from "@/server/studio/runtime";
 
 export const metadata = { title: "Settings" };
 
@@ -21,13 +22,14 @@ const FEATURE_NAMES: Partial<Record<Feature, string>> = {
 
 export default async function SettingsPage() {
   const ctx = await pageContext("settings.view");
+  const ui = await studioForCompany(ctx);
   const weekly = await weeklySummaryEnabled(ctx);
   const company = await getCompanySummary(ctx);
   const canEdit = roleCan(ctx.role, "settings.manage") && ctx.policy.login === "full";
 
   return (
     <>
-      <PageHeader title="Settings" subtitle="Company details, your plan and where customer records live." />
+      <PageHeader title={ui.t("page.settings.title")} subtitle={ui.t("page.settings.subtitle")} />
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <div className="space-y-6">
           <Card title="Company details">
@@ -69,7 +71,9 @@ export default async function SettingsPage() {
 
         <div className="space-y-6">
           <Card title="Your plan">
-            <p className="font-semibold">{PACKAGE_LABELS[company.package]}</p>
+            <p className="font-semibold">{ui.packageName(company.package)}</p>
+            {ui.packageDescription(company.package) && <p className="text-sm text-muted">{ui.packageDescription(company.package)}</p>}
+            {ui.packagePrice(company.package) && <p className="mt-1 text-sm">{ui.packagePrice(company.package)}</p>}
             <ul className="mt-3 space-y-1.5 text-sm">
               {(Object.keys(FEATURE_NAMES) as Feature[]).filter((f) => f in FEATURES).map((f) => (
                 <li key={f} className={`flex items-center justify-between gap-2 ${hasFeature(company.package, f) ? "" : "text-slate-400"}`}>

@@ -128,6 +128,14 @@ Nothing is needed for staging/demo (they simulate). For real clients:
   Supabase. **Quarterly** restore drill into a separate project (RECOVERY.md) and record it on Admin → Health.
 - **Load test** staging before launch: `npx tsx scripts/load-test.ts --url https://staging.yourdomain.com --record`.
 
+## 6. Stage 8 (Platform Studio and Sequence Library)
+- Run migrations `0014_studio_library` and `0015_studio_library_security` on **staging first** (they only add tables
+  and replace the deletion function; no existing data changes). Run the browser tests against staging.
+- Add `STUDIO_SAFE_MODE=false` to the environment variables (set `true` only for recovery).
+- After deploying production: Admin → Sequence Library → Add starter templates → review → publish.
+- **Rollback:** redeploying the previous code leaves the new tables unused (harmless). Published Studio settings stop
+  applying with old code. Don't drop the tables — they hold your Studio history and library.
+
 ## Release, verification and rollback
 
 1. Work happens on a branch → pull request → automated checks (`typecheck`, `lint`, `test`, `build`).
